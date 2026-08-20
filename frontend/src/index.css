@@ -1536,8 +1536,35 @@ tr:hover td {
   .compact-form-grid {
     grid-template-columns: 1fr;
   }
-  .compact-section-card {
-    padding: 16px;
-  }
+
+
+/* Field Validation Error Styles */
+.field-error-msg {
+  color: #ef4444 !important;
+  font-size: 10.5px !important;
+  margin-top: 2px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
 }
 
+.form-field input.input-error,
+.form-field select.input-error,
+.form-field textarea.input-error,
+input.input-error,
+select.input-error,
+textarea.input-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 1px #ef4444 !important;
+}
+
+.form-field input.input-error:focus,
+.form-field select.input-error:focus,
+.form-field textarea.input-error:focus,
+input.input-error:focus,
+select.input-error:focus,
+textarea.input-error:focus {
+  border-color: #ef4444 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+}
+}

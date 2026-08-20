@@ -19,8 +19,8 @@ export const Login: React.FC = () => {
     try {
       const res = await axiosInstance.post('/auth/login', { username, password });
       if (res.data.status) {
-        const { token, username: userEmail, fullName, role } = res.data.data;
-        login(token, { username: userEmail, fullName, role });
+        const { token, username: userEmail, fullName, role, roleId, permissions } = res.data.data;
+        login(token, { username: userEmail, fullName, role, roleId, permissions });
         navigate('/');
       } else {
         setError(res.data.message || 'Login failed');

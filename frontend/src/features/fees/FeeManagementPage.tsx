@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../config/axiosInstance';
 import { Modal } from '../../components/Modal';
+import { validateRequired, FieldError } from '../../validations';
 
 interface Payment {
   paymentId: number;
@@ -25,6 +26,8 @@ export const FeeManagementPage: React.FC = () => {
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [pendingFeesAmount, setPendingFeesAmount] = useState<number | null>(null);
+  const [overdueStudentsCount, setOverdueStudentsCount] = useState<number | null>(null);
 
   // Form State
   const [selectedStudentId, setSelectedStudentId] = useState<number | ''>('');
@@ -32,6 +35,7 @@ export const FeeManagementPage: React.FC = () => {
   const [paymentMode, setPaymentMode] = useState('UPI');
   const [paymentType, setPaymentType] = useState('Installment');
   const [remarks, setRemarks] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -44,6 +48,12 @@ export const FeeManagementPage: React.FC = () => {
     try {
       const res = await axiosInstance.get('/fees');
       setPayments(res.data.data);
+      setPendingFeesAmount(
+        typeof res.data.pendingFeesAmount === 'number' ? res.data.pendingFeesAmount : null
+      );
+      setOverdueStudentsCount(
+        typeof res.data.overdueStudentsCount === 'number' ? res.data.overdueStudentsCount : null
+      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -65,7 +75,17 @@ export const FeeManagementPage: React.FC = () => {
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStudentId || !amountPaid || Number(amountPaid) <= 0) return;
+    const errors: Record<string, string> = {};
+
+    const stErr = validateRequired(selectedStudentId);
+    if (stErr) errors.selectedStudentId = stErr;
+
+    const amtErr = validateRequired(amountPaid);
+    if (amtErr) errors.amountPaid = amtErr;
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setSaving(true);
     try {
       await axiosInstance.post('/fees', {
@@ -99,16 +119,25 @@ export const FeeManagementPage: React.FC = () => {
         </div>
         <div className="stat-card">
           <div className="stat-top"><i className="ti ti-alert-triangle"></i>Pending Fees</div>
-          <div className="stat-value">₹42,000</div>
+          <div className="stat-value">
+            {loading ? '...' : pendingFeesAmount !== null ? `₹${pendingFeesAmount.toLocaleString()}` : '₹0'}
+          </div>
+          {!loading && pendingFeesAmount === null && (
+            <div className="stat-delta" style={{ color: '#a0aec0' }}>No data available</div>
+          )}
         </div>
         <div className="stat-card">
           <div className="stat-top"><i className="ti ti-clock-exclamation"></i>Overdue Students</div>
-          <div className="stat-value">18</div>
+          <div className="stat-value">
+            {loading ? '...' : overdueStudentsCount !== null ? overdueStudentsCount : '0'}
+          </div>
+          {!loading && overdueStudentsCount === null && (
+            <div className="stat-delta" style={{ color: '#a0aec0' }}>No data available</div>
+          )}
         </div>
       </div>
 
       <div className="section-title">
-        <span>Recent Payments</span>
         <button className="btn btn-primary" onClick={() => setModalOpen(true)}>
           <i className="ti ti-plus"></i>Collect Fee
         </button>
@@ -148,9 +177,8 @@ export const FeeManagementPage: React.FC = () => {
                     <td>{p.paymentDate}</td>
                     <td>
                       <span
-                        className={`badge ${
-                          p.status === 'Paid' ? 'badge-green' : p.status === 'Partial' ? 'badge-amber' : 'badge-red'
-                        }`}
+                        className={`badge ${p.status === 'Paid' ? 'badge-green' : p.status === 'Partial' ? 'badge-amber' : 'badge-red'
+                          }`}
                       >
                         {p.status}
                       </span>
@@ -164,13 +192,16 @@ export const FeeManagementPage: React.FC = () => {
       </div>
 
       <Modal isOpen={modalOpen} title="Collect Fee Payment" onClose={() => setModalOpen(false)}>
-        <form onSubmit={handleRecordPayment} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <form noValidate onSubmit={handleRecordPayment} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div className="form-field">
             <label>Select Student <span className="required-asterisk">*</span></label>
             <select
+              className={fieldErrors.selectedStudentId ? 'input-error' : ''}
               value={selectedStudentId}
-              onChange={(e) => setSelectedStudentId(Number(e.target.value))}
-              required
+              onChange={(e) => {
+                setSelectedStudentId(Number(e.target.value));
+                if (fieldErrors.selectedStudentId) setFieldErrors((prev) => ({ ...prev, selectedStudentId: '' }));
+              }}
             >
               <option value="">-- Select Student --</option>
               {students.map((s) => (
@@ -179,17 +210,22 @@ export const FeeManagementPage: React.FC = () => {
                 </option>
               ))}
             </select>
+            <FieldError error={fieldErrors.selectedStudentId} />
           </div>
 
           <div className="form-field">
             <label>Amount Paid (₹) <span className="required-asterisk">*</span></label>
             <input
               type="number"
+              className={fieldErrors.amountPaid ? 'input-error' : ''}
               placeholder="e.g. 5000"
               value={amountPaid}
-              onChange={(e) => setAmountPaid(e.target.value === '' ? '' : Number(e.target.value))}
-              required
+              onChange={(e) => {
+                setAmountPaid(e.target.value === '' ? '' : Number(e.target.value));
+                if (fieldErrors.amountPaid) setFieldErrors((prev) => ({ ...prev, amountPaid: '' }));
+              }}
             />
+            <FieldError error={fieldErrors.amountPaid} />
           </div>
 
           <div className="form-field">

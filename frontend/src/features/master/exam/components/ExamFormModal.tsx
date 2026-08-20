@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../../../../components/Modal';
 import type { ExamDto } from '../api/examApi';
+import { validateRequired, FieldError } from '../../../../validations';
 
 interface ExamFormModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export const ExamFormModal: React.FC<ExamFormModalProps> = ({
 }) => {
   const [examName, setExamName] = useState('');
   const [examType, setExamType] = useState('Unit Test');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -27,13 +29,19 @@ export const ExamFormModal: React.FC<ExamFormModalProps> = ({
       setExamName('');
       setExamType('Unit Test');
     }
+    setFieldErrors({});
   }, [initialData, isOpen]);
-
-  const isValid = examName.trim() !== '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid) return;
+    const errors: Record<string, string> = {};
+
+    const enErr = validateRequired(examName);
+    if (enErr) errors.examName = enErr;
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setSaving(true);
     try {
       await onSave({
@@ -54,16 +62,20 @@ export const ExamFormModal: React.FC<ExamFormModalProps> = ({
       title={initialData ? 'Edit Exam' : 'Add Exam'}
       onClose={onClose}
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div className="form-field">
           <label>Exam Name <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.examName ? 'input-error' : ''}
             placeholder="e.g. August Monthly Test"
             value={examName}
-            onChange={(e) => setExamName(e.target.value)}
-            required
+            onChange={(e) => {
+              setExamName(e.target.value);
+              if (fieldErrors.examName) setFieldErrors((prev) => ({ ...prev, examName: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.examName} />
         </div>
 
         <div className="form-field">
@@ -82,7 +94,7 @@ export const ExamFormModal: React.FC<ExamFormModalProps> = ({
           <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={!isValid || saving}>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? 'Saving...' : 'Save Exam'}
           </button>
         </div>
@@ -90,3 +102,4 @@ export const ExamFormModal: React.FC<ExamFormModalProps> = ({
     </Modal>
   );
 };
+

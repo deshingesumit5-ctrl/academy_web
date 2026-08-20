@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../../../../components/Modal';
 import type { FeeStructureDto } from '../api/feeStructureApi';
+import { validateRequired, FieldError } from '../../../../validations';
 
 interface FeeStructureFormModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export const FeeStructureFormModal: React.FC<FeeStructureFormModalProps> = ({
 }) => {
   const [planName, setPlanName] = useState('');
   const [totalFee, setTotalFee] = useState<number | ''>('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -27,13 +29,22 @@ export const FeeStructureFormModal: React.FC<FeeStructureFormModalProps> = ({
       setPlanName('');
       setTotalFee('');
     }
+    setFieldErrors({});
   }, [initialData, isOpen]);
-
-  const isValid = planName.trim() !== '' && totalFee !== '' && Number(totalFee) >= 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid) return;
+    const errors: Record<string, string> = {};
+
+    const pnErr = validateRequired(planName);
+    if (pnErr) errors.planName = pnErr;
+
+    const tfErr = validateRequired(totalFee);
+    if (tfErr) errors.totalFee = tfErr;
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setSaving(true);
     try {
       await onSave({
@@ -54,35 +65,43 @@ export const FeeStructureFormModal: React.FC<FeeStructureFormModalProps> = ({
       title={initialData ? 'Edit Fee Structure' : 'Add Fee Structure'}
       onClose={onClose}
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div className="form-field">
           <label>Name <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.planName ? 'input-error' : ''}
             placeholder="e.g. Annual Course Fee / Monthly Coaching Fee"
             value={planName}
-            onChange={(e) => setPlanName(e.target.value)}
-            required
+            onChange={(e) => {
+              setPlanName(e.target.value);
+              if (fieldErrors.planName) setFieldErrors((prev) => ({ ...prev, planName: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.planName} />
         </div>
 
         <div className="form-field">
           <label>Amount (₹) <span className="required-asterisk">*</span></label>
           <input
             type="number"
+            className={fieldErrors.totalFee ? 'input-error' : ''}
             placeholder="e.g. 15000"
             value={totalFee}
-            onChange={(e) => setTotalFee(e.target.value === '' ? '' : Number(e.target.value))}
+            onChange={(e) => {
+              setTotalFee(e.target.value === '' ? '' : Number(e.target.value));
+              if (fieldErrors.totalFee) setFieldErrors((prev) => ({ ...prev, totalFee: '' }));
+            }}
             min="0"
-            required
           />
+          <FieldError error={fieldErrors.totalFee} />
         </div>
 
         <div className="modal-footer" style={{ padding: 0, marginTop: '10px' }}>
           <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={!isValid || saving}>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? 'Saving...' : 'Save Fee Structure'}
           </button>
         </div>
@@ -90,3 +109,4 @@ export const FeeStructureFormModal: React.FC<FeeStructureFormModalProps> = ({
     </Modal>
   );
 };
+

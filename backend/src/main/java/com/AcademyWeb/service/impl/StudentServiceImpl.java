@@ -67,7 +67,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public List<StudentDto> getAllStudents() {
-        return studentRepository.findAll().stream()
+        return studentRepository.findAllByOrderByStudentIdDesc().stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }

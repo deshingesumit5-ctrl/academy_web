@@ -33,6 +33,18 @@ public class UserEntity {
     @Column(name = "role", nullable = false, length = 30)
     private String role; // SUPER_ADMIN, OFFICE_ADMIN, SALES
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "role_id")
+    private RoleEntity roleEntity;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
+    private Employee employee;
+
+    @Transient
+    private String description;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 

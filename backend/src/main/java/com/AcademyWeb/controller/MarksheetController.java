@@ -26,6 +26,12 @@ public class MarksheetController {
         return ResponseEntity.ok(ApiResponse.success("Marksheet record saved successfully", marksheetService.saveMarksheet(dto)));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<MarksheetDto>> updateMarksheet(@PathVariable Long id, @RequestBody MarksheetDto dto) {
+        dto.setMarksheetId(id);
+        return ResponseEntity.ok(ApiResponse.success("Marksheet record updated successfully", marksheetService.saveMarksheet(dto)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteMarksheet(@PathVariable Long id) {
         marksheetService.deleteMarksheet(id);

@@ -64,14 +64,21 @@ public class MarksheetServiceImpl implements MarksheetService {
         Batch batch = dto.getBatchId() != null ? batchRepository.findById(dto.getBatchId()).orElse(null) : null;
         ExamMaster exam = dto.getExamId() != null ? examMasterRepository.findById(dto.getExamId()).orElse(null) : null;
 
-        Marksheet marksheet = Marksheet.builder()
-                .student(student)
-                .batch(batch)
-                .admissionType(dto.getAdmissionType())
-                .exam(exam)
-                .fileUrl(dto.getFileUrl())
-                .fileName(dto.getFileName())
-                .build();
+        Marksheet marksheet;
+        if (dto.getMarksheetId() != null) {
+            marksheet = marksheetRepository.findById(dto.getMarksheetId())
+                    .orElseGet(() -> new Marksheet());
+            marksheet.setMarksheetId(dto.getMarksheetId());
+        } else {
+            marksheet = new Marksheet();
+        }
+
+        marksheet.setStudent(student);
+        marksheet.setBatch(batch);
+        marksheet.setAdmissionType(dto.getAdmissionType());
+        marksheet.setExam(exam);
+        if (dto.getFileUrl() != null) marksheet.setFileUrl(dto.getFileUrl());
+        if (dto.getFileName() != null) marksheet.setFileName(dto.getFileName());
 
         Marksheet saved = marksheetRepository.save(marksheet);
         return mapToDto(saved);

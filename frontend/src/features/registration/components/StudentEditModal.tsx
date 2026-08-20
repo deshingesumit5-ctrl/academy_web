@@ -3,6 +3,13 @@ import { Modal } from '../../../components/Modal';
 import type { CourseDto } from '../../master/course/api/courseApi';
 import type { LibraryPlanDto } from '../../master/library-plan/api/libraryPlanApi';
 import type { BatchDto } from '../../master/batch/api/batchApi';
+import {
+  MOBILE_PLACEHOLDER,
+  handleMobileChange,
+  validateMobile,
+  validateRequired,
+  FieldError,
+} from '../../../validations';
 
 export interface StudentItem {
   studentId?: number;
@@ -61,6 +68,7 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
   const [dob, setDob] = useState('');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [address, setAddress] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Parent Info
   const [fatherName, setFatherName] = useState('');
@@ -106,14 +114,43 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
       setBatchId(student.batchId || '');
       setPlanId(student.planId || '');
       setStatus(student.status || 'ACTIVE');
+      setFieldErrors({});
     }
   }, [student, isOpen]);
 
-  const isValid = studentName.trim() !== '' && mobileNumber.trim() !== '';
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!student?.studentId || !isValid) return;
+    const errors: Record<string, string> = {};
+    const nameErr = validateRequired(studentName);
+    if (nameErr) errors.studentName = nameErr;
+
+    const mobErr = validateMobile(mobileNumber, true);
+    if (mobErr) errors.mobileNumber = mobErr;
+
+    const dobErr = validateRequired(dob);
+    if (dobErr) errors.dob = dobErr;
+
+    const addrErr = validateRequired(address);
+    if (addrErr) errors.address = addrErr;
+
+    const fatherErr = validateRequired(fatherName);
+    if (fatherErr) errors.fatherName = fatherErr;
+
+    const motherErr = validateRequired(motherName);
+    if (motherErr) errors.motherName = motherErr;
+
+    const pMobErr = validateMobile(parentMobile, true);
+    if (pMobErr) errors.parentMobile = pMobErr;
+
+    const schoolErr = validateRequired(schoolCollege);
+    if (schoolErr) errors.schoolCollege = schoolErr;
+
+    const stdErr = validateRequired(currentStandard);
+    if (stdErr) errors.currentStandard = stdErr;
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0 || !student?.studentId) return;
+
     setSaving(true);
     try {
       await onSave(student.studentId, {
@@ -159,7 +196,7 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} title="Edit Registered Student" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+      <form noValidate onSubmit={handleSubmit} className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
         
         {/* Personal Details */}
         <div style={sectionHeaderStyle}>Personal Details</div>
@@ -168,20 +205,30 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
           <label>Student Name <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.studentName ? 'input-error' : ''}
             value={studentName}
-            onChange={(e) => setStudentName(e.target.value)}
-            required
+            onChange={(e) => {
+              setStudentName(e.target.value);
+              if (fieldErrors.studentName) setFieldErrors((prev) => ({ ...prev, studentName: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.studentName} />
         </div>
 
         <div className="form-field">
           <label>Mobile Number <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.mobileNumber ? 'input-error' : ''}
+            placeholder={MOBILE_PLACEHOLDER}
+            maxLength={10}
             value={mobileNumber}
-            onChange={(e) => setMobileNumber(e.target.value)}
-            required
+            onChange={(e) => {
+              handleMobileChange(e, setMobileNumber);
+              if (fieldErrors.mobileNumber) setFieldErrors((prev) => ({ ...prev, mobileNumber: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.mobileNumber} />
         </div>
 
         <div className="form-field">
@@ -203,12 +250,17 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
         </div>
 
         <div className="form-field">
-          <label>Date of Birth</label>
+          <label>Date of Birth <span className="required-asterisk">*</span></label>
           <input
             type="date"
+            className={fieldErrors.dob ? 'input-error' : ''}
             value={dob}
-            onChange={(e) => setDob(e.target.value)}
+            onChange={(e) => {
+              setDob(e.target.value);
+              if (fieldErrors.dob) setFieldErrors((prev) => ({ ...prev, dob: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.dob} />
         </div>
 
         <div className="form-field">
@@ -221,43 +273,65 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
         </div>
 
         <div className="form-field" style={{ gridColumn: 'span 2' }}>
-          <label>Address</label>
+          <label>Address <span className="required-asterisk">*</span></label>
           <textarea
+            className={fieldErrors.address ? 'input-error' : ''}
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={(e) => {
+              setAddress(e.target.value);
+              if (fieldErrors.address) setFieldErrors((prev) => ({ ...prev, address: '' }));
+            }}
             rows={2}
             style={{ resize: 'vertical' }}
           />
+          <FieldError error={fieldErrors.address} />
         </div>
 
         {/* Parent Details */}
         <div style={sectionHeaderStyle}>Parent Details</div>
 
         <div className="form-field">
-          <label>Father's Name</label>
+          <label>Father's Name <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.fatherName ? 'input-error' : ''}
             value={fatherName}
-            onChange={(e) => setFatherName(e.target.value)}
+            onChange={(e) => {
+              setFatherName(e.target.value);
+              if (fieldErrors.fatherName) setFieldErrors((prev) => ({ ...prev, fatherName: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.fatherName} />
         </div>
 
         <div className="form-field">
-          <label>Mother's Name</label>
+          <label>Mother's Name <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.motherName ? 'input-error' : ''}
             value={motherName}
-            onChange={(e) => setMotherName(e.target.value)}
+            onChange={(e) => {
+              setMotherName(e.target.value);
+              if (fieldErrors.motherName) setFieldErrors((prev) => ({ ...prev, motherName: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.motherName} />
         </div>
 
         <div className="form-field">
-          <label>Parent Mobile Number</label>
+          <label>Parent Mobile Number <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.parentMobile ? 'input-error' : ''}
+            placeholder={MOBILE_PLACEHOLDER}
+            maxLength={10}
             value={parentMobile}
-            onChange={(e) => setParentMobile(e.target.value)}
+            onChange={(e) => {
+              handleMobileChange(e, setParentMobile);
+              if (fieldErrors.parentMobile) setFieldErrors((prev) => ({ ...prev, parentMobile: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.parentMobile} />
         </div>
 
         <div className="form-field">
@@ -273,12 +347,17 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
         <div style={sectionHeaderStyle}>Education Details</div>
 
         <div className="form-field">
-          <label>School / College</label>
+          <label>School / College <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.schoolCollege ? 'input-error' : ''}
             value={schoolCollege}
-            onChange={(e) => setSchoolCollege(e.target.value)}
+            onChange={(e) => {
+              setSchoolCollege(e.target.value);
+              if (fieldErrors.schoolCollege) setFieldErrors((prev) => ({ ...prev, schoolCollege: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.schoolCollege} />
         </div>
 
         <div className="form-field">
@@ -291,12 +370,17 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
         </div>
 
         <div className="form-field" style={{ gridColumn: 'span 2' }}>
-          <label>Current Standard</label>
+          <label>Current Standard <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.currentStandard ? 'input-error' : ''}
             value={currentStandard}
-            onChange={(e) => setCurrentStandard(e.target.value)}
+            onChange={(e) => {
+              setCurrentStandard(e.target.value);
+              if (fieldErrors.currentStandard) setFieldErrors((prev) => ({ ...prev, currentStandard: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.currentStandard} />
         </div>
 
         {/* Admission Details */}
@@ -354,7 +438,7 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
           <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={!isValid || saving}>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>

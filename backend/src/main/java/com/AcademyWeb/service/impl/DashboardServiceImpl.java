@@ -44,44 +44,40 @@ public class DashboardServiceImpl implements DashboardService {
 
         long activeStudents = studentRepository.countByStatus("ACTIVE");
         long presentCount = attendanceRepository.countByAttendanceDateAndStatus(today, "PRESENT");
-        
-        String attendancePct = activeStudents > 0 ? (presentCount * 100 / activeStudents) + "%" : "86%";
-        String attendanceDetails = activeStudents > 0 ? presentCount + " of " + activeStudents + " present" : "268 of 312 present";
+
+        String attendancePct = activeStudents > 0 ? (presentCount * 100 / activeStudents) + "%" : "0%";
+        String attendanceDetails = activeStudents > 0 ? presentCount + " of " + activeStudents + " present"
+                : "0 of 0 present";
 
         BigDecimal todayCollection = feePaymentRepository.sumAmountPaidByDate(today);
-        if (todayCollection == null || todayCollection.compareTo(BigDecimal.ZERO) == 0) {
-            todayCollection = BigDecimal.valueOf(18400);
+        if (todayCollection == null) {
+            todayCollection = BigDecimal.ZERO;
         }
 
         long todayPaymentsCount = feePaymentRepository.countByPaymentDate(today);
-        if (todayPaymentsCount == 0) {
-            todayPaymentsCount = 12;
-        }
 
-        BigDecimal monthlyRevenue = feePaymentRepository.sumAmountPaidByMonthAndYear(today.getMonthValue(), today.getYear());
-        if (monthlyRevenue == null || monthlyRevenue.compareTo(BigDecimal.ZERO) == 0) {
-            monthlyRevenue = BigDecimal.valueOf(125000);
+        BigDecimal monthlyRevenue = feePaymentRepository.sumAmountPaidByMonthAndYear(today.getMonthValue(),
+                today.getYear());
+        if (monthlyRevenue == null) {
+            monthlyRevenue = BigDecimal.ZERO;
         }
 
         long todayAdmissions = studentRepository.countByAdmissionDate(today);
-        if (todayAdmissions == 0) {
-            todayAdmissions = 4;
-        }
 
         long newStudentsThisMonth = studentRepository.countByAdmissionDateBetween(
-            today.withDayOfMonth(1), today);
-        if (newStudentsThisMonth == 0) {
-            newStudentsThisMonth = 14;
-        }
+                today.withDayOfMonth(1), today);
 
         List<FollowUpDto> todaysList = followUpService.getTodayFollowUps();
         List<FollowUpDto> upcomingList = followUpService.getUpcomingFollowUps();
         List<FollowUpDto> missedList = followUpService.getMissedFollowUps();
 
         List<FollowUpDto> todaysFollowups = new java.util.ArrayList<>();
-        if (missedList != null) todaysFollowups.addAll(missedList);
-        if (todaysList != null) todaysFollowups.addAll(todaysList);
-        if (upcomingList != null) todaysFollowups.addAll(upcomingList);
+        if (missedList != null)
+            todaysFollowups.addAll(missedList);
+        if (todaysList != null)
+            todaysFollowups.addAll(todaysList);
+        if (upcomingList != null)
+            todaysFollowups.addAll(upcomingList);
 
         long todayFollowupsCount = followUpRepository.countByFollowupDateAndStatus(today, "Pending");
         long upcomingFollowupsCount = followUpRepository.countByFollowupDateAfterAndStatus(today, "Pending");
@@ -89,7 +85,27 @@ public class DashboardServiceImpl implements DashboardService {
 
         List<TaskDto> tasks = taskService.getAllTasks();
 
-        long openInquiries = inquiryRepository.countByStatus("Open");
+        java.util.Map<Long, BigDecimal> totalFeeByStudent = new java.util.HashMap<>();
+        for (Object[] row : studentRepository.findActiveStudentTotalFees()) {
+            totalFeeByStudent.put((Long) row[0], (BigDecimal) row[1]);
+        }
+
+        java.util.Map<Long, BigDecimal> paidByStudent = new java.util.HashMap<>();
+        for (Object[] row : feePaymentRepository.sumAmountPaidGroupByStudent()) {
+            paidByStudent.put((Long) row[0], (BigDecimal) row[1]);
+        }
+
+        BigDecimal pendingFeesAmount = BigDecimal.ZERO;
+        long overdueStudentsCount = 0;
+        for (java.util.Map.Entry<Long, BigDecimal> entry : totalFeeByStudent.entrySet()) {
+            BigDecimal totalFee = entry.getValue();
+            BigDecimal paid = paidByStudent.getOrDefault(entry.getKey(), BigDecimal.ZERO);
+            BigDecimal balance = totalFee.subtract(paid);
+            if (balance.compareTo(BigDecimal.ZERO) > 0) {
+                pendingFeesAmount = pendingFeesAmount.add(balance);
+                overdueStudentsCount++;
+            }
+        }        long openInquiries = inquiryRepository.countByStatus("Open");
         long followupInquiries = inquiryRepository.countByStatus("Follow-up");
         long lostInquiries = inquiryRepository.countByStatus("Lost");
         long convertedInquiries = inquiryRepository.countByStatus("Converted");
@@ -100,9 +116,9 @@ public class DashboardServiceImpl implements DashboardService {
                 .attendanceDetails(attendanceDetails)
                 .todayCollection(todayCollection)
                 .todayPaymentsCount((int) todayPaymentsCount)
-                .pendingFeesAmount(BigDecimal.valueOf(42000))
-                .overdueStudentsCount(18)
-                .activeStudentsCount(activeStudents > 0 ? activeStudents : 148L)
+                .pendingFeesAmount(pendingFeesAmount)
+                .overdueStudentsCount((int) overdueStudentsCount)
+                .activeStudentsCount(activeStudents)
                 .newStudentsThisMonth((int) newStudentsThisMonth)
                 .todayAdmissionsCount(todayAdmissions)
                 .monthlyRevenue(monthlyRevenue)
@@ -111,11 +127,11 @@ public class DashboardServiceImpl implements DashboardService {
                 .upcomingFollowupsCount(upcomingFollowupsCount)
                 .missedFollowupsCount(missedFollowupsCount)
                 .todaysTasks(tasks)
-                .openInquiriesCount(openInquiries > 0 ? openInquiries : 15L)
-                .followupInquiriesCount(followupInquiries > 0 ? followupInquiries : 6L)
+                .openInquiriesCount(openInquiries)
+                .followupInquiriesCount(followupInquiries)
                 .lostInquiriesCount(lostInquiries)
-                .convertedInquiriesCount(convertedInquiries > 0 ? convertedInquiries : 24L)
-                .totalInquiriesCount(totalInquiries > 0 ? totalInquiries : 45L)
+                .convertedInquiriesCount(convertedInquiries)
+                .totalInquiriesCount(totalInquiries)
                 .build();
     }
 }

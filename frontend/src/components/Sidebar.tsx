@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import axiosInstance from '../config/axiosInstance';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -8,7 +9,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission, isSuperAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -19,8 +20,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [unreadTaskCount, setUnreadTaskCount] = useState<number>(0);
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const navMenuRef = useRef<HTMLDivElement>(null);
+
+  const checkUnreadTasks = async () => {
+    if (!user) return;
+    try {
+      const res = await axiosInstance.get('/tasks');
+      const allTasks: any[] = res.data.data || [];
+      const userFull = (user.fullName || '').trim().toLowerCase();
+      const userEmail = (user.username || '').trim().toLowerCase();
+
+      const myTasks = isSuperAdmin()
+        ? allTasks
+        : allTasks.filter((t) => {
+            const assigned = (t.assignedTo || '').trim().toLowerCase();
+            return (userFull && assigned === userFull) || (userEmail && assigned === userEmail);
+          });
+
+      const key = `seen_tasks_${user.username || 'user'}`;
+      const seenIds: number[] = JSON.parse(localStorage.getItem(key) || '[]');
+
+      const unread = myTasks.filter((t) => !seenIds.includes(t.taskId));
+      setUnreadTaskCount(unread.length);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    checkUnreadTasks();
+    const handleRead = () => checkUnreadTasks();
+    window.addEventListener('tasks_read', handleRead);
+    const interval = setInterval(checkUnreadTasks, 15000);
+    return () => {
+      window.removeEventListener('tasks_read', handleRead);
+      clearInterval(interval);
+    };
+  }, [user]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -45,13 +83,81 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const isStudentsActive = ['/registration', '/attendance', '/fees', '/marksheet'].includes(location.pathname);
   const isGrowthActive = ['/inquiry', '/followup'].includes(location.pathname);
   const isOperationsActive = ['/whatsapp', '/tasks', '/reports'].includes(location.pathname);
+  const isAdminActive = location.pathname.startsWith('/roles');
 
-  const roleLabel =
-    user?.role === 'SUPER_ADMIN'
-      ? 'Super Admin'
-      : user?.role === 'OFFICE_ADMIN'
-      ? 'Office Admin'
-      : 'Sales User';
+  const showSuperAdminMenu = isSuperAdmin();
+
+  // Permission checks per sub-item
+  const showDashboard = isSuperAdmin() || hasPermission('Dashboard', 'Read') || !!user;
+  
+  const showAcademy = isSuperAdmin() || hasPermission('Academy Master', 'Read');
+  const showLibraryPlan = isSuperAdmin() || hasPermission('Library Plan', 'Read');
+  const showCourse = isSuperAdmin() || hasPermission('Course Master', 'Read');
+  const showBatch = isSuperAdmin() || hasPermission('Batch Master', 'Read');
+  const showExam = isSuperAdmin() || hasPermission('Exam Master', 'Read');
+  const showInquirySource = isSuperAdmin() || hasPermission('Inquiry Source', 'Read');
+  const showFeeStructure = isSuperAdmin() || hasPermission('Fee Structure', 'Read');
+  const showEmployee = isSuperAdmin() || hasPermission('Employee Master', 'Read') || hasPermission('Employee', 'Read');
+  const showUserMaster = isSuperAdmin() || hasPermission('User Master', 'Read') || hasPermission('User', 'Read');
+  const showBloodGroup = isSuperAdmin() || hasPermission('Blood Group Master', 'Read') || hasPermission('Blood Group', 'Read');
+  const showMastersGroup = showAcademy || showLibraryPlan || showCourse || showBatch || showExam || showInquirySource || showFeeStructure || showEmployee || showUserMaster || showBloodGroup;
+
+  const showRegistration = isSuperAdmin() || hasPermission('Student Registration', 'Read');
+  const showAttendance = isSuperAdmin() || hasPermission('Attendance', 'Read');
+  const showFees = isSuperAdmin() || hasPermission('Fee Management', 'Read');
+  const showMarksheet = isSuperAdmin() || hasPermission('Marksheet', 'Read');
+  const showStudentsGroup = showRegistration || showAttendance || showFees || showMarksheet;
+
+  const showInquiry = isSuperAdmin() || hasPermission('Inquiry', 'Read');
+  const showFollowup = isSuperAdmin() || hasPermission('Follow-ups', 'Read');
+  const showGrowthGroup = showInquiry || showFollowup;
+
+  const showWhatsapp = isSuperAdmin() || hasPermission('WhatsApp', 'Read');
+  const showTasks = isSuperAdmin() || hasPermission('Tasks', 'Read');
+  const showReports = isSuperAdmin() || hasPermission('Reports', 'Read');
+  const showOperationsGroup = showWhatsapp || showTasks || showReports;
+
+  const getUserSymbol = () => {
+    if (!user) return 'SA';
+    const roleUpper = (user.role || '').toUpperCase();
+    const nameUpper = (user.fullName || '').toUpperCase();
+
+    if (
+      roleUpper.includes('SYSTEM') ||
+      roleUpper.includes('SUPER') ||
+      nameUpper.includes('SYSTEM ADMIN') ||
+      nameUpper.includes('SUPER ADMIN')
+    ) {
+      return 'SA';
+    }
+    if (roleUpper.includes('OFFICE') || nameUpper.includes('OFFICE ADMIN')) {
+      return 'OA';
+    }
+
+    if (user.role) {
+      const parts = user.role.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        const sym = (parts[0][0] + parts[1][0]).toUpperCase();
+        if (sym === 'SU') return 'SA';
+        return sym;
+      }
+    }
+
+    if (user.fullName) {
+      const parts = user.fullName.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        const sym = (parts[0][0] + parts[1][0]).toUpperCase();
+        if (sym === 'SU') return 'SA';
+        return sym;
+      }
+      const fn = user.fullName.substring(0, 2).toUpperCase();
+      return fn === 'SU' ? 'SA' : fn;
+    }
+
+    return 'SA';
+  };
+
+  const roleLabel = user?.role || (isSuperAdmin() ? 'Super Admin' : 'User');
 
   return (
     <>
@@ -71,131 +177,204 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         {/* Navigation Section */}
         <div className="nav-menu" ref={navMenuRef}>
           {/* Dashboard */}
-          <div className="nav-group">
-            <div className="nav-section mobile-only">Overview</div>
-            <NavLink
-              to="/"
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-              onClick={() => { setOpenDropdown(null); onClose(); }}
-            >
-              <div className="nav-item-left">
-                <i className="ti ti-layout-dashboard mobile-only"></i>
-                <span>Dashboard</span>
-              </div>
-            </NavLink>
-          </div>
+          {showDashboard && (
+            <div className="nav-group">
+              <div className="nav-section mobile-only">Overview</div>
+              <NavLink
+                to="/"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => { setOpenDropdown(null); onClose(); }}
+              >
+                <div className="nav-item-left">
+                  <i className="ti ti-layout-dashboard mobile-only"></i>
+                  <span>Dashboard</span>
+                </div>
+              </NavLink>
+            </div>
+          )}
 
           {/* Masters Group */}
-          <div className={`nav-group dropdown-group ${isMastersActive ? 'active' : ''} ${openDropdown === 'masters' ? 'open' : ''}`}>
-            <div className="nav-section mobile-only">Masters</div>
-            <div
-              className={`nav-item dropdown-trigger desktop-only ${isMastersActive ? 'active' : ''}`}
-              onClick={() => toggleDropdown('masters')}
-            >
-              <div className="nav-item-left">
-                <span>Masters</span>
+          {showMastersGroup && (
+            <div className={`nav-group dropdown-group ${isMastersActive ? 'active' : ''} ${openDropdown === 'masters' ? 'open' : ''}`}>
+              <div className="nav-section mobile-only">Masters</div>
+              <div
+                className={`nav-item dropdown-trigger desktop-only ${isMastersActive ? 'active' : ''}`}
+                onClick={() => toggleDropdown('masters')}
+              >
+                <div className="nav-item-left">
+                  <span>Masters</span>
+                </div>
+                <i className="ti ti-chevron-down dropdown-arrow"></i>
               </div>
-              <i className="ti ti-chevron-down dropdown-arrow"></i>
+              <div className={`dropdown-menu ${openDropdown === 'masters' ? 'show' : ''}`}>
+                {showEmployee && (
+                  <NavLink to="/masters/employee" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-id"></i>Employee
+                  </NavLink>
+                )}
+                {showUserMaster && (
+                  <NavLink to="/masters/user" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-user-cog"></i>User
+                  </NavLink>
+                )}
+                {showAcademy && (
+                  <NavLink to="/masters/academy" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-building"></i>Academy
+                  </NavLink>
+                )}
+                {showLibraryPlan && (
+                  <NavLink to="/masters/library-plan" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-books"></i>Library Plan
+                  </NavLink>
+                )}
+                {showCourse && (
+                  <NavLink to="/masters/course" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-notebook"></i>Course
+                  </NavLink>
+                )}
+                {showBatch && (
+                  <NavLink to="/masters/batch" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-users-group"></i>Batch
+                  </NavLink>
+                )}
+                {showExam && (
+                  <NavLink to="/masters/exam" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-clipboard-text"></i>Exam
+                  </NavLink>
+                )}
+                {showInquirySource && (
+                  <NavLink to="/masters/inquiry-source" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-route"></i>Inquiry Source
+                  </NavLink>
+                )}
+                {showFeeStructure && (
+                  <NavLink to="/masters/fee-structure" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-receipt"></i>Fee Structure
+                  </NavLink>
+                )}
+              </div>
             </div>
-            <div className={`dropdown-menu ${openDropdown === 'masters' ? 'show' : ''}`}>
-              <NavLink to="/masters/academy" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-building"></i>Academy
-              </NavLink>
-              <NavLink to="/masters/library-plan" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-books"></i>Library Plan
-              </NavLink>
-              <NavLink to="/masters/course" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-notebook"></i>Course
-              </NavLink>
-              <NavLink to="/masters/batch" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-users-group"></i>Batch
-              </NavLink>
-              <NavLink to="/masters/exam" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-clipboard-text"></i>Exam
-              </NavLink>
-              <NavLink to="/masters/inquiry-source" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-route"></i>Inquiry Source
-              </NavLink>
-              <NavLink to="/masters/fee-structure" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-receipt"></i>Fee Structure
-              </NavLink>
-            </div>
-          </div>
+          )}
 
           {/* Students Group */}
-          <div className={`nav-group dropdown-group ${isStudentsActive ? 'active' : ''} ${openDropdown === 'students' ? 'open' : ''}`}>
-            <div className="nav-section mobile-only">Students</div>
-            <div
-              className={`nav-item dropdown-trigger desktop-only ${isStudentsActive ? 'active' : ''}`}
-              onClick={() => toggleDropdown('students')}
-            >
-              <div className="nav-item-left">
-                <span>Students</span>
+          {showStudentsGroup && (
+            <div className={`nav-group dropdown-group ${isStudentsActive ? 'active' : ''} ${openDropdown === 'students' ? 'open' : ''}`}>
+              <div className="nav-section mobile-only">Students</div>
+              <div
+                className={`nav-item dropdown-trigger desktop-only ${isStudentsActive ? 'active' : ''}`}
+                onClick={() => toggleDropdown('students')}
+              >
+                <div className="nav-item-left">
+                  <span>Students</span>
+                </div>
+                <i className="ti ti-chevron-down dropdown-arrow"></i>
               </div>
-              <i className="ti ti-chevron-down dropdown-arrow"></i>
+              <div className={`dropdown-menu ${openDropdown === 'students' ? 'show' : ''}`}>
+                {showRegistration && (
+                  <NavLink to="/registration" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-user-plus"></i>Student Registration
+                  </NavLink>
+                )}
+                {showAttendance && (
+                  <NavLink to="/attendance" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-calendar-check"></i>Attendance 
+                  </NavLink>
+                )}
+                {showFees && (
+                  <NavLink to="/fees" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-cash"></i>Fee Management
+                  </NavLink>
+                )}
+                {showMarksheet && (
+                  <NavLink to="/marksheet" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-file-certificate"></i>Marksheet
+                  </NavLink>
+                )}
+              </div>
             </div>
-            <div className={`dropdown-menu ${openDropdown === 'students' ? 'show' : ''}`}>
-              <NavLink to="/registration" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-user-plus"></i>Student Registration
-              </NavLink>
-              <NavLink to="/attendance" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-calendar-check"></i>Attendance
-              </NavLink>
-              <NavLink to="/fees" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-cash"></i>Fee Management
-              </NavLink>
-              <NavLink to="/marksheet" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-file-certificate"></i>Marksheet
-              </NavLink>
-            </div>
-          </div>
+          )}
 
           {/* Growth Group */}
-          <div className={`nav-group dropdown-group ${isGrowthActive ? 'active' : ''} ${openDropdown === 'growth' ? 'open' : ''}`}>
-            <div className="nav-section mobile-only">Growth</div>
-            <div
-              className={`nav-item dropdown-trigger desktop-only ${isGrowthActive ? 'active' : ''}`}
-              onClick={() => toggleDropdown('growth')}
-            >
-              <div className="nav-item-left">
-                <span>Growth</span>
+          {showGrowthGroup && (
+            <div className={`nav-group dropdown-group ${isGrowthActive ? 'active' : ''} ${openDropdown === 'growth' ? 'open' : ''}`}>
+              <div className="nav-section mobile-only">Growth</div>
+              <div
+                className={`nav-item dropdown-trigger desktop-only ${isGrowthActive ? 'active' : ''}`}
+                onClick={() => toggleDropdown('growth')}
+              >
+                <div className="nav-item-left">
+                  <span>Growth</span>
+                </div>
+                <i className="ti ti-chevron-down dropdown-arrow"></i>
               </div>
-              <i className="ti ti-chevron-down dropdown-arrow"></i>
+              <div className={`dropdown-menu ${openDropdown === 'growth' ? 'show' : ''}`}>
+                {showInquiry && (
+                  <NavLink to="/inquiry" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-phone-call"></i>Inquiry
+                  </NavLink>
+                )}
+                {showFollowup && (
+                  <NavLink to="/followup" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-calendar-time"></i>Follow-ups
+                  </NavLink>
+                )}
+              </div>
             </div>
-            <div className={`dropdown-menu ${openDropdown === 'growth' ? 'show' : ''}`}>
-              <NavLink to="/inquiry" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-phone-call"></i>Inquiry
-              </NavLink>
-              <NavLink to="/followup" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-calendar-time"></i>Follow-ups
-              </NavLink>
-            </div>
-          </div>
+          )}
 
           {/* Operations Group */}
-          <div className={`nav-group dropdown-group ${isOperationsActive ? 'active' : ''} ${openDropdown === 'operations' ? 'open' : ''}`}>
-            <div className="nav-section mobile-only">Operations</div>
-            <div
-              className={`nav-item dropdown-trigger desktop-only ${isOperationsActive ? 'active' : ''}`}
-              onClick={() => toggleDropdown('operations')}
-            >
-              <div className="nav-item-left">
-                <span>Operations</span>
+          {showOperationsGroup && (
+            <div className={`nav-group dropdown-group ${isOperationsActive ? 'active' : ''} ${openDropdown === 'operations' ? 'open' : ''}`}>
+              <div className="nav-section mobile-only">Operations</div>
+              <div
+                className={`nav-item dropdown-trigger desktop-only ${isOperationsActive ? 'active' : ''}`}
+                onClick={() => toggleDropdown('operations')}
+              >
+                <div className="nav-item-left">
+                  <span>Operations {unreadTaskCount > 0 && `(${unreadTaskCount})`}</span>
+                </div>
+                <i className="ti ti-chevron-down dropdown-arrow"></i>
               </div>
-              <i className="ti ti-chevron-down dropdown-arrow"></i>
+              <div className={`dropdown-menu ${openDropdown === 'operations' ? 'show' : ''}`}>
+                {showWhatsapp && (
+                  <NavLink to="/whatsapp" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-brand-whatsapp"></i>WhatsApp
+                  </NavLink>
+                )}
+                {showTasks && (
+                  <NavLink to="/tasks" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-checklist"></i>Task Management {unreadTaskCount > 0 && `(${unreadTaskCount})`}
+                  </NavLink>
+                )}
+                {showReports && (
+                  <NavLink to="/reports" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                    <i className="ti ti-chart-bar"></i>Reports
+                  </NavLink>
+                )}
+              </div>
             </div>
-            <div className={`dropdown-menu ${openDropdown === 'operations' ? 'show' : ''}`}>
-              <NavLink to="/whatsapp" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-brand-whatsapp"></i>WhatsApp
-              </NavLink>
-              <NavLink to="/tasks" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-checklist"></i>Tasks
-              </NavLink>
-              <NavLink to="/reports" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
-                <i className="ti ti-chart-bar"></i>Reports
-              </NavLink>
+          )}
+
+          {/* Administration Group (Only Super Admin) */}
+          {showSuperAdminMenu && (
+            <div className={`nav-group dropdown-group ${isAdminActive ? 'active' : ''} ${openDropdown === 'admin' ? 'open' : ''}`}>
+              <div className="nav-section mobile-only">Administration</div>
+              <div
+                className={`nav-item dropdown-trigger desktop-only ${isAdminActive ? 'active' : ''}`}
+                onClick={() => toggleDropdown('admin')}
+              >
+                <div className="nav-item-left">
+                  <span>Administration</span>
+                </div>
+                <i className="ti ti-chevron-down dropdown-arrow"></i>
+              </div>
+              <div className={`dropdown-menu ${openDropdown === 'admin' ? 'show' : ''}`}>
+                <NavLink to="/roles" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                  <i className="ti ti-user-shield"></i>Roles & Permissions
+                </NavLink>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* User Info & Actions */}
@@ -209,7 +388,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             onClick={() => setUserDropdownOpen((prev) => !prev)}
             title="User menu"
           >
-            {user?.fullName?.substring(0, 2).toUpperCase() || 'SU'}
+            {getUserSymbol()}
           </div>
 
           {userDropdownOpen && (

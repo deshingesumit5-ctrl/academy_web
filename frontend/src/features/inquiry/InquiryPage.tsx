@@ -4,6 +4,13 @@ import { ActionButtons } from '../../components/ActionButtons';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { getCourses, type CourseDto } from '../master/course/api/courseApi';
 import { getLibraryPlans, type LibraryPlanDto } from '../master/library-plan/api/libraryPlanApi';
+import {
+  MOBILE_PLACEHOLDER,
+  handleMobileChange,
+  validateMobile,
+  validateRequired,
+  FieldError,
+} from '../../validations';
 
 interface Inquiry {
   inquiryId: number;
@@ -40,6 +47,7 @@ export const InquiryPage: React.FC = () => {
   const [counselorAssigned, setCounselorAssigned] = useState('Sales - Kiran');
   const [status, setStatus] = useState<'Open' | 'Follow-up' | 'Lost' | 'Converted'>('Open');
   const [remarks, setRemarks] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Table Filter State
   const [filterStatus, setFilterStatus] = useState<'All' | 'Open' | 'Follow-up' | 'Lost' | 'Converted'>('All');
@@ -157,6 +165,7 @@ export const InquiryPage: React.FC = () => {
     setCounselorAssigned('Sales - Kiran');
     setStatus('Open');
     setRemarks('');
+    setFieldErrors({});
   };
 
   const resetForm = () => {
@@ -167,14 +176,17 @@ export const InquiryPage: React.FC = () => {
 
   const handleSaveInquiry = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!studentName.trim()) {
-      setErrorMsg('Please enter Student Name');
-      return;
-    }
-    if (!mobileNumber.trim()) {
-      setErrorMsg('Please enter Mobile Number');
-      return;
-    }
+    
+    const errors: Record<string, string> = {};
+    const nameErr = validateRequired(studentName);
+    if (nameErr) errors.studentName = nameErr;
+
+    const mobErr = validateMobile(mobileNumber, true);
+    if (mobErr) errors.mobileNumber = mobErr;
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setSaving(true);
     setSuccessMsg('');
     setErrorMsg('');
@@ -372,16 +384,22 @@ export const InquiryPage: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleSaveInquiry} style={{ marginTop: '10px' }}>
+          <form noValidate onSubmit={handleSaveInquiry} style={{ marginTop: '10px' }}>
             <div className="form-grid">
               <div className="form-field">
                 <label>Student Name <span className="required-asterisk">*</span></label>
                 <input
+                  className={fieldErrors.studentName ? 'input-error' : ''}
                   placeholder="e.g. Rahul Sharma"
                   value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setStudentName(e.target.value);
+                    if (fieldErrors.studentName) {
+                      setFieldErrors((prev) => ({ ...prev, studentName: '' }));
+                    }
+                  }}
                 />
+                <FieldError error={fieldErrors.studentName} />
               </div>
 
               <div className="form-field">
@@ -396,11 +414,18 @@ export const InquiryPage: React.FC = () => {
               <div className="form-field">
                 <label>Mobile Number <span className="required-asterisk">*</span></label>
                 <input
-                  placeholder="10-digit mobile number"
+                  className={fieldErrors.mobileNumber ? 'input-error' : ''}
+                  placeholder={MOBILE_PLACEHOLDER}
+                  maxLength={10}
                   value={mobileNumber}
-                  onChange={(e) => setMobileNumber(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    handleMobileChange(e, setMobileNumber);
+                    if (fieldErrors.mobileNumber) {
+                      setFieldErrors((prev) => ({ ...prev, mobileNumber: '' }));
+                    }
+                  }}
                 />
+                <FieldError error={fieldErrors.mobileNumber} />
               </div>
 
               <div className="form-field">

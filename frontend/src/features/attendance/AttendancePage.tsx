@@ -35,9 +35,6 @@ export const AttendancePage: React.FC = () => {
 
   return (
     <div>
-      <div className="section-title">
-        <span>Attendance Management</span>
-      </div>
 
       <div className="tabs">
         <div

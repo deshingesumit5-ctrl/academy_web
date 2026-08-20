@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../../../../components/Modal';
 import type { BatchDto } from '../api/batchApi';
+import { validateRequired, FieldError } from '../../../../validations';
 
 interface BatchFormModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const BatchFormModal: React.FC<BatchFormModalProps> = ({
   const [faculty, setFaculty] = useState('');
   const [batchTiming, setBatchTiming] = useState('');
   const [capacity, setCapacity] = useState<number | ''>('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -33,13 +35,19 @@ export const BatchFormModal: React.FC<BatchFormModalProps> = ({
       setBatchTiming('');
       setCapacity('');
     }
+    setFieldErrors({});
   }, [initialData, isOpen]);
-
-  const isValid = batchName.trim() !== '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid) return;
+    const errors: Record<string, string> = {};
+
+    const bnErr = validateRequired(batchName);
+    if (bnErr) errors.batchName = bnErr;
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setSaving(true);
     try {
       await onSave({
@@ -62,16 +70,20 @@ export const BatchFormModal: React.FC<BatchFormModalProps> = ({
       title={initialData ? 'Edit Batch' : 'Add Batch'}
       onClose={onClose}
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div className="form-field">
           <label>Batch Name <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.batchName ? 'input-error' : ''}
             placeholder="e.g. Morning Batch A1"
             value={batchName}
-            onChange={(e) => setBatchName(e.target.value)}
-            required
+            onChange={(e) => {
+              setBatchName(e.target.value);
+              if (fieldErrors.batchName) setFieldErrors((prev) => ({ ...prev, batchName: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.batchName} />
         </div>
 
         <div className="form-field">
@@ -108,7 +120,7 @@ export const BatchFormModal: React.FC<BatchFormModalProps> = ({
           <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={!isValid || saving}>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? 'Saving...' : 'Save Batch'}
           </button>
         </div>
@@ -116,3 +128,4 @@ export const BatchFormModal: React.FC<BatchFormModalProps> = ({
     </Modal>
   );
 };
+

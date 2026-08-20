@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../../../../components/Modal';
 import type { CourseDto } from '../api/courseApi';
+import { validateRequired, FieldError } from '../../../../validations';
 
 interface CourseFormModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
   const [duration, setDuration] = useState('');
   const [fees, setFees] = useState<number | ''>('');
   const [description, setDescription] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -33,13 +35,22 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
       setFees('');
       setDescription('');
     }
+    setFieldErrors({});
   }, [initialData, isOpen]);
-
-  const isValid = courseName.trim() && fees !== '' && Number(fees) > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid) return;
+    const errors: Record<string, string> = {};
+
+    const cnErr = validateRequired(courseName);
+    if (cnErr) errors.courseName = cnErr;
+
+    const feeErr = validateRequired(fees);
+    if (feeErr) errors.fees = feeErr;
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setSaving(true);
     try {
       await onSave({
@@ -62,16 +73,20 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
       title={initialData ? 'Edit Course' : 'Add Course'}
       onClose={onClose}
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div className="form-field">
           <label>Course Name <span className="required-asterisk">*</span></label>
           <input
             type="text"
+            className={fieldErrors.courseName ? 'input-error' : ''}
             placeholder="e.g. JEE Advanced 2-Year Program"
             value={courseName}
-            onChange={(e) => setCourseName(e.target.value)}
-            required
+            onChange={(e) => {
+              setCourseName(e.target.value);
+              if (fieldErrors.courseName) setFieldErrors((prev) => ({ ...prev, courseName: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.courseName} />
         </div>
 
         <div className="form-field">
@@ -88,11 +103,15 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
           <label>Fees (₹) <span className="required-asterisk">*</span></label>
           <input
             type="number"
+            className={fieldErrors.fees ? 'input-error' : ''}
             placeholder="e.g. 45000"
             value={fees}
-            onChange={(e) => setFees(e.target.value === '' ? '' : Number(e.target.value))}
-            required
+            onChange={(e) => {
+              setFees(e.target.value === '' ? '' : Number(e.target.value));
+              if (fieldErrors.fees) setFieldErrors((prev) => ({ ...prev, fees: '' }));
+            }}
           />
+          <FieldError error={fieldErrors.fees} />
         </div>
 
         <div className="form-field">
@@ -109,7 +128,7 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
           <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={!isValid || saving}>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? 'Saving...' : 'Save Course'}
           </button>
         </div>
@@ -117,3 +136,4 @@ export const CourseFormModal: React.FC<CourseFormModalProps> = ({
     </Modal>
   );
 };
+

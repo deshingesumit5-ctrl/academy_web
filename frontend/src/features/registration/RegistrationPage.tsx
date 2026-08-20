@@ -8,8 +8,16 @@ import { getBatches } from '../master/batch/api/batchApi';
 import type { BatchDto } from '../master/batch/api/batchApi';
 import { ActionButtons } from '../../components/ActionButtons';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { Modal } from '../../components/Modal';
 import { StudentEditModal } from './components/StudentEditModal';
 import type { StudentItem } from './components/StudentEditModal';
+import {
+  MOBILE_PLACEHOLDER,
+  handleMobileChange,
+  validateMobile,
+  validateRequired,
+  FieldError,
+} from '../../validations';
 
 export const RegistrationPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'form' | 'list'>('form');
@@ -35,6 +43,7 @@ export const RegistrationPage: React.FC = () => {
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [address, setAddress] = useState('');
   const [photo, setPhoto] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Parent State
   const [fatherName, setFatherName] = useState('');
@@ -83,7 +92,9 @@ export const RegistrationPage: React.FC = () => {
     setStudentsLoading(true);
     try {
       const res = await axiosInstance.get('/students');
-      setStudents(res.data.data || []);
+      const list: StudentItem[] = res.data.data || [];
+      list.sort((a, b) => (b.studentId || 0) - (a.studentId || 0));
+      setStudents(list);
     } catch (err) {
       console.error(err);
     } finally {
@@ -111,17 +122,86 @@ export const RegistrationPage: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const validateStepAndNavigate = (targetStep: number): boolean => {
+    if (targetStep < step) {
+      setStep(targetStep);
+      return true;
+    }
+
+    const errors: Record<string, string> = { ...fieldErrors };
+    let firstErrorStep: number | null = null;
+
+    // Step 2 validations (Personal details)
+    if (targetStep > 2) {
+      const nameErr = validateRequired(studentName);
+      if (nameErr) errors.studentName = nameErr;
+      else delete errors.studentName;
+
+      const dobErr = validateRequired(dob);
+      if (dobErr) errors.dob = dobErr;
+      else delete errors.dob;
+
+      const mobErr = validateMobile(mobileNumber, true);
+      if (mobErr) errors.mobileNumber = mobErr;
+      else delete errors.mobileNumber;
+
+      const addrErr = validateRequired(address);
+      if (addrErr) errors.address = addrErr;
+      else delete errors.address;
+
+      if (nameErr || dobErr || mobErr || addrErr) {
+        if (firstErrorStep === null) firstErrorStep = 2;
+      }
+    }
+
+    // Step 3 validations (Parent info)
+    if (targetStep > 3) {
+      const fatherErr = validateRequired(fatherName);
+      if (fatherErr) errors.fatherName = fatherErr;
+      else delete errors.fatherName;
+
+      const motherErr = validateRequired(motherName);
+      if (motherErr) errors.motherName = motherErr;
+      else delete errors.motherName;
+
+      const pMobErr = validateMobile(parentMobile, true);
+      if (pMobErr) errors.parentMobile = pMobErr;
+      else delete errors.parentMobile;
+
+      if (fatherErr || motherErr || pMobErr) {
+        if (firstErrorStep === null) firstErrorStep = 3;
+      }
+    }
+
+    // Step 4 validations (Education)
+    if (targetStep > 4) {
+      const schoolErr = validateRequired(schoolCollege);
+      if (schoolErr) errors.schoolCollege = schoolErr;
+      else delete errors.schoolCollege;
+
+      const stdErr = validateRequired(currentStandard);
+      if (stdErr) errors.currentStandard = stdErr;
+      else delete errors.currentStandard;
+
+      if (schoolErr || stdErr) {
+        if (firstErrorStep === null) firstErrorStep = 4;
+      }
+    }
+
+    setFieldErrors(errors);
+
+    if (firstErrorStep !== null) {
+      setStep(firstErrorStep);
+      return false;
+    }
+
+    setStep(targetStep);
+    return true;
+  };
+
   const handleSubmit = async () => {
-    if (!studentName.trim()) {
-      setErrorMsg('Please enter Student Name');
-      setStep(2);
-      return;
-    }
-    if (!mobileNumber.trim()) {
-      setErrorMsg('Please enter Mobile Number');
-      setStep(2);
-      return;
-    }
+    const isValid = validateStepAndNavigate(6);
+    if (!isValid) return;
 
     setSaving(true);
     setSuccessMsg('');
@@ -155,7 +235,6 @@ export const RegistrationPage: React.FC = () => {
       const res = await axiosInstance.post('/students', payload);
       if (res.data.status) {
         setSuccessMsg(`Student Registration Successfully! Admission No: ${res.data.data.admissionNumber}`);
-        // Refresh registered students list in background
         fetchRegisteredStudents();
       }
     } catch (err: any) {
@@ -170,6 +249,7 @@ export const RegistrationPage: React.FC = () => {
   const handleResetFormAndClearMsg = () => {
     setSuccessMsg('');
     setErrorMsg('');
+    setFieldErrors({});
     setStep(1);
     setStudentName('');
     setMobileNumber('');
@@ -251,41 +331,24 @@ export const RegistrationPage: React.FC = () => {
       {activeTab === 'form' && (
         <div className="card card-pad">
           {successMsg && (
-            <div
-              className="badge badge-green"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                marginBottom: '20px',
-                fontSize: '14px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-               justifyContent: 'space-between',
-                gap: '12px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="ti ti-check" style={{ fontSize: '18px' }}></i>
-                <span>{successMsg}</span>
+            <Modal isOpen={!!successMsg} title="Registration Successful" onClose={handleResetFormAndClearMsg}>
+              <div style={{ padding: '16px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#c6f6d5', color: '#22543d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px' }}>
+                  <i className="ti ti-check"></i>
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--navy)', lineHeight: '1.5' }}>
+                  {successMsg}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ minWidth: '100px', padding: '8px 24px', fontSize: '14px', borderRadius: '6px', marginTop: '8px' }}
+                  onClick={handleResetFormAndClearMsg}
+                >
+                  OK
+                </button>
               </div>
-              <button
-                type="button"
-                className="btn btn-sm"
-                style={{
-                  backgroundColor: '#276749',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '4px 14px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-                onClick={handleResetFormAndClearMsg}
-              >
-                OK
-              </button>
-            </div>
+            </Modal>
           )}
           {errorMsg && (
             <div className="badge badge-red" style={{ width: '100%', padding: '10px 14px', marginBottom: '20px', fontSize: '13.5px', borderRadius: '8px' }}>
@@ -307,7 +370,7 @@ export const RegistrationPage: React.FC = () => {
                 key={s.id}
                 type="button"
                 className={`step-item ${step === s.id ? 'active' : step > s.id ? 'done' : ''}`}
-                onClick={() => setStep(s.id)}
+                onClick={() => validateStepAndNavigate(s.id)}
               >
                 <div className="step-circle">
                   {step > s.id ? <i className="ti ti-check" style={{ fontSize: '18px' }}></i> : s.id}
@@ -366,7 +429,18 @@ export const RegistrationPage: React.FC = () => {
             <div className="form-grid">
               <div className="form-field">
                 <label>Student name <span className="required-asterisk">*</span></label>
-                <input placeholder="Full name" value={studentName} onChange={(e) => setStudentName(e.target.value)} required />
+                <input
+                  className={fieldErrors.studentName ? 'input-error' : ''}
+                  placeholder="Full name"
+                  value={studentName}
+                  onChange={(e) => {
+                    setStudentName(e.target.value);
+                    if (fieldErrors.studentName) {
+                      setFieldErrors((prev) => ({ ...prev, studentName: '' }));
+                    }
+                  }}
+                />
+                <FieldError error={fieldErrors.studentName} />
               </div>
               <div className="form-field">
                 <label>Gender</label>
@@ -377,12 +451,35 @@ export const RegistrationPage: React.FC = () => {
                 </select>
               </div>
               <div className="form-field">
-                <label>Date of birth</label>
-                <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+                <label>Date of birth <span className="required-asterisk">*</span></label>
+                <input
+                  type="date"
+                  className={fieldErrors.dob ? 'input-error' : ''}
+                  value={dob}
+                  onChange={(e) => {
+                    setDob(e.target.value);
+                    if (fieldErrors.dob) {
+                      setFieldErrors((prev) => ({ ...prev, dob: '' }));
+                    }
+                  }}
+                />
+                <FieldError error={fieldErrors.dob} />
               </div>
               <div className="form-field">
                 <label>Mobile number <span className="required-asterisk">*</span></label>
-                <input placeholder="10-digit mobile number" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} required />
+                <input
+                  className={fieldErrors.mobileNumber ? 'input-error' : ''}
+                  placeholder={MOBILE_PLACEHOLDER}
+                  maxLength={10}
+                  value={mobileNumber}
+                  onChange={(e) => {
+                    handleMobileChange(e, setMobileNumber);
+                    if (fieldErrors.mobileNumber) {
+                      setFieldErrors((prev) => ({ ...prev, mobileNumber: '' }));
+                    }
+                  }}
+                />
+                <FieldError error={fieldErrors.mobileNumber} />
               </div>
               <div className="form-field">
                 <label>Email</label>
@@ -393,14 +490,21 @@ export const RegistrationPage: React.FC = () => {
                 <input placeholder="XXXX XXXX XXXX" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value)} />
               </div>
               <div className="form-field">
-                <label>Address</label>
+                <label>Address <span className="required-asterisk">*</span></label>
                 <textarea
+                  className={fieldErrors.address ? 'input-error' : ''}
                   placeholder="Full address"
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    if (fieldErrors.address) {
+                      setFieldErrors((prev) => ({ ...prev, address: '' }));
+                    }
+                  }}
                   rows={3}
                   style={{ resize: 'vertical', minHeight: '88px' }}
                 />
+                <FieldError error={fieldErrors.address} />
               </div>
 
               {/* Student Photo Upload beside Address */}
@@ -451,16 +555,50 @@ export const RegistrationPage: React.FC = () => {
           {step === 3 && (
             <div className="form-grid">
               <div className="form-field">
-                <label>Father's Name</label>
-                <input placeholder="Father's full name" value={fatherName} onChange={(e) => setFatherName(e.target.value)} />
+                <label>Father's Name <span className="required-asterisk">*</span></label>
+                <input
+                  className={fieldErrors.fatherName ? 'input-error' : ''}
+                  placeholder="Father's full name"
+                  value={fatherName}
+                  onChange={(e) => {
+                    setFatherName(e.target.value);
+                    if (fieldErrors.fatherName) {
+                      setFieldErrors((prev) => ({ ...prev, fatherName: '' }));
+                    }
+                  }}
+                />
+                <FieldError error={fieldErrors.fatherName} />
               </div>
               <div className="form-field">
-                <label>Mother's Name</label>
-                <input placeholder="Mother's full name" value={motherName} onChange={(e) => setMotherName(e.target.value)} />
+                <label>Mother's Name <span className="required-asterisk">*</span></label>
+                <input
+                  className={fieldErrors.motherName ? 'input-error' : ''}
+                  placeholder="Mother's full name"
+                  value={motherName}
+                  onChange={(e) => {
+                    setMotherName(e.target.value);
+                    if (fieldErrors.motherName) {
+                      setFieldErrors((prev) => ({ ...prev, motherName: '' }));
+                    }
+                  }}
+                />
+                <FieldError error={fieldErrors.motherName} />
               </div>
               <div className="form-field">
-                <label>Parent Mobile Number</label>
-                <input placeholder="10-digit mobile number" value={parentMobile} onChange={(e) => setParentMobile(e.target.value)} />
+                <label>Parent Mobile Number <span className="required-asterisk">*</span></label>
+                <input
+                  className={fieldErrors.parentMobile ? 'input-error' : ''}
+                  placeholder={MOBILE_PLACEHOLDER}
+                  maxLength={10}
+                  value={parentMobile}
+                  onChange={(e) => {
+                    handleMobileChange(e, setParentMobile);
+                    if (fieldErrors.parentMobile) {
+                      setFieldErrors((prev) => ({ ...prev, parentMobile: '' }));
+                    }
+                  }}
+                />
+                <FieldError error={fieldErrors.parentMobile} />
               </div>
               <div className="form-field">
                 <label>Parent Email</label>
@@ -473,16 +611,38 @@ export const RegistrationPage: React.FC = () => {
           {step === 4 && (
             <div className="form-grid">
               <div className="form-field">
-                <label>School / College</label>
-                <input placeholder="School or college name" value={schoolCollege} onChange={(e) => setSchoolCollege(e.target.value)} />
+                <label>School / College <span className="required-asterisk">*</span></label>
+                <input
+                  className={fieldErrors.schoolCollege ? 'input-error' : ''}
+                  placeholder="School or college name"
+                  value={schoolCollege}
+                  onChange={(e) => {
+                    setSchoolCollege(e.target.value);
+                    if (fieldErrors.schoolCollege) {
+                      setFieldErrors((prev) => ({ ...prev, schoolCollege: '' }));
+                    }
+                  }}
+                />
+                <FieldError error={fieldErrors.schoolCollege} />
               </div>
               <div className="form-field">
                 <label>Qualification</label>
                 <input placeholder="e.g. 10th Pass / 12th Pursuing" value={qualification} onChange={(e) => setQualification(e.target.value)} />
               </div>
               <div className="form-field">
-                <label>Current Standard</label>
-                <input placeholder="e.g. 11th Science / FY B.Sc" value={currentStandard} onChange={(e) => setCurrentStandard(e.target.value)} />
+                <label>Current Standard <span className="required-asterisk">*</span></label>
+                <input
+                  className={fieldErrors.currentStandard ? 'input-error' : ''}
+                  placeholder="e.g. 11th Science / FY B.Sc"
+                  value={currentStandard}
+                  onChange={(e) => {
+                    setCurrentStandard(e.target.value);
+                    if (fieldErrors.currentStandard) {
+                      setFieldErrors((prev) => ({ ...prev, currentStandard: '' }));
+                    }
+                  }}
+                />
+                <FieldError error={fieldErrors.currentStandard} />
               </div>
             </div>
           )}
@@ -502,15 +662,6 @@ export const RegistrationPage: React.FC = () => {
                 <button type="button" className="btn btn-sm" style={{ fontSize: '12px', padding: '4px 10px' }} onClick={() => setStep(1)}>
                   <i className="ti ti-pencil"></i> Change Type
                 </button>
-              </div>
-
-              <div className="form-field">
-                <label>Admission Type</label>
-                <select value={admissionType} onChange={(e) => setAdmissionType(e.target.value)}>
-                  <option value="ACADEMY">Academy Only</option>
-                  <option value="LIBRARY">Library Only</option>
-                  <option value="ACADEMY_LIBRARY">Academy + Library</option>
-                </select>
               </div>
 
               {(admissionType === 'ACADEMY' || admissionType === 'ACADEMY_LIBRARY') && (
@@ -540,15 +691,17 @@ export const RegistrationPage: React.FC = () => {
                 <input type="date" value={admissionDate} onChange={(e) => setAdmissionDate(e.target.value)} />
               </div>
 
-              <div className="form-field">
-                <label>Library Plan</label>
-                <select value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value ? Number(e.target.value) : '')}>
-                  <option value="">-- Select Library Plan --</option>
-                  {plans.map((p) => (
-                    <option key={p.planId} value={p.planId}>{p.planName} (₹{p.fees})</option>
-                  ))}
-                </select>
-              </div>
+              {(admissionType === 'LIBRARY' || admissionType === 'ACADEMY_LIBRARY') && (
+                <div className="form-field">
+                  <label>Library Plan</label>
+                  <select value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value ? Number(e.target.value) : '')}>
+                    <option value="">-- Select Library Plan --</option>
+                    {plans.map((p) => (
+                      <option key={p.planId} value={p.planId}>{p.planName} (₹{p.fees})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="form-field">
                 <label>Status</label>
@@ -564,12 +717,12 @@ export const RegistrationPage: React.FC = () => {
           {/* Footer Navigation Buttons */}
           <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
             {step > 1 && (
-              <button className="btn" onClick={() => setStep(step - 1)}>
+              <button className="btn" onClick={() => validateStepAndNavigate(step - 1)}>
                 Back
               </button>
             )}
             {step < 5 ? (
-              <button className="btn btn-primary" onClick={() => setStep(step + 1)}>
+              <button className="btn btn-primary" onClick={() => validateStepAndNavigate(step + 1)}>
                 Next <i className="ti ti-arrow-right"></i>
               </button>
             ) : (
