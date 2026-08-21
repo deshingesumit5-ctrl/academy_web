@@ -22,5 +22,7 @@ public interface FeePaymentRepository extends JpaRepository<FeePayment, Long> {
 
     @Query("SELECT f.student.studentId, SUM(f.amountPaid) FROM FeePayment f GROUP BY f.student.studentId")
     List<Object[]> sumAmountPaidGroupByStudent();
+
+    List<FeePayment> findByStudentStudentIdOrderByPaymentDateAscPaymentIdAsc(Long studentId);
 }
 

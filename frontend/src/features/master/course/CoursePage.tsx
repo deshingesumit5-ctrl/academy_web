@@ -5,28 +5,30 @@ import { CourseFormModal } from './components/CourseFormModal';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { ActionButtons } from '../../../components/ActionButtons';
 
+import { getCachedData } from '../../../config/apiCache';
+
 export const CoursePage: React.FC = () => {
-  const [courses, setCourses] = useState<CourseDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedData('/courses');
+  const [courses, setCourses] = useState<CourseDto[]>(cached?.data || []);
+  const [loading, setLoading] = useState(courses.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CourseDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchCourses = async () => {
-    setLoading(true);
+  const fetchCourses = async (showLoading = courses.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await getCourses();
       setCourses(data || []);
     } catch (err) {
       console.error(err);
-      setCourses([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCourses();
+    fetchCourses(courses.length === 0);
   }, []);
 
   const handleOpenAdd = () => {
@@ -45,14 +47,14 @@ export const CoursePage: React.FC = () => {
     } else {
       await createCourse(data);
     }
-    await fetchCourses();
+    await fetchCourses(false);
   };
 
   const handleConfirmDelete = async () => {
     if (deletingId) {
       try {
         await deleteCourse(deletingId);
-        await fetchCourses();
+        await fetchCourses(false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -70,9 +72,7 @@ export const CoursePage: React.FC = () => {
       </div>
 
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading courses...</div>
-        ) : courses.length === 0 ? (
+        {courses.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-notebook"></i>
             <div>No courses added yet</div>

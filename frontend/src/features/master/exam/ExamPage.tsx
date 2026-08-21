@@ -5,28 +5,30 @@ import { ExamFormModal } from './components/ExamFormModal';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { ActionButtons } from '../../../components/ActionButtons';
 
+import { getCachedData } from '../../../config/apiCache';
+
 export const ExamPage: React.FC = () => {
-  const [exams, setExams] = useState<ExamDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedData('/exams');
+  const [exams, setExams] = useState<ExamDto[]>(cached?.data || []);
+  const [loading, setLoading] = useState(exams.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ExamDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchExams = async () => {
-    setLoading(true);
+  const fetchExams = async (showLoading = exams.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await getExams();
       setExams(data || []);
     } catch (err) {
       console.error(err);
-      setExams([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchExams();
+    fetchExams(exams.length === 0);
   }, []);
 
   const handleOpenAdd = () => {
@@ -45,14 +47,14 @@ export const ExamPage: React.FC = () => {
     } else {
       await createExam(data);
     }
-    await fetchExams();
+    await fetchExams(false);
   };
 
   const handleConfirmDelete = async () => {
     if (deletingId) {
       try {
         await deleteExam(deletingId);
-        await fetchExams();
+        await fetchExams(false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -70,9 +72,7 @@ export const ExamPage: React.FC = () => {
       </div>
 
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading exams...</div>
-        ) : exams.length === 0 ? (
+        {exams.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-clipboard-text"></i>
             <div>No exams added yet</div>

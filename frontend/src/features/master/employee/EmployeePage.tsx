@@ -5,28 +5,30 @@ import { EmployeeFormModal } from './components/EmployeeFormModal';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { ActionButtons } from '../../../components/ActionButtons';
 
+import { getCachedData } from '../../../config/apiCache';
+
 export const EmployeePage: React.FC = () => {
-  const [employees, setEmployees] = useState<EmployeeDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedData('/employees');
+  const [employees, setEmployees] = useState<EmployeeDto[]>(cached?.data || []);
+  const [loading, setLoading] = useState(employees.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EmployeeDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchEmployees = async () => {
-    setLoading(true);
+  const fetchEmployees = async (showLoading = employees.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await getEmployees();
       setEmployees(data || []);
     } catch (err) {
       console.error(err);
-      setEmployees([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchEmployees();
+    fetchEmployees(employees.length === 0);
   }, []);
 
   const handleOpenAdd = () => {
@@ -45,14 +47,14 @@ export const EmployeePage: React.FC = () => {
     } else {
       await createEmployee(data);
     }
-    await fetchEmployees();
+    await fetchEmployees(false);
   };
 
   const handleConfirmDelete = async () => {
     if (deletingId) {
       try {
         await deleteEmployee(deletingId);
-        await fetchEmployees();
+        await fetchEmployees(false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -70,9 +72,7 @@ export const EmployeePage: React.FC = () => {
       </div>
 
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading employees...</div>
-        ) : employees.length === 0 ? (
+        {employees.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-user-id"></i>
             <div>No employees added yet</div>

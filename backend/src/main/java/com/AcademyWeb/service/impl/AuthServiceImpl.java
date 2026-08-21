@@ -20,7 +20,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService, UserDetailsService {
 
     @Autowired
@@ -48,6 +51,7 @@ public class AuthServiceImpl implements AuthService, UserDetailsService {
     }
 
     @Override
+    @Transactional
     public AuthResponseDto login(AuthRequestDto authRequest) {
         String identifier = authRequest.getUsername();
         UserEntity userEntity = userRepository.findByUsernameOrEmail(identifier, identifier)
@@ -83,6 +87,7 @@ public class AuthServiceImpl implements AuthService, UserDetailsService {
 
     @Override
     @PostConstruct
+    @Transactional
     public void seedDefaultAdminIfNotExist() {
         // Ensure Super Admin Role exists in DB
         com.AcademyWeb.entity.RoleEntity superAdminRole = roleRepository.findByName("Super Admin")

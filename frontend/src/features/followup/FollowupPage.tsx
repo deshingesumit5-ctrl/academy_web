@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../config/axiosInstance';
+import { getCachedData } from '../../config/apiCache';
 import { useSearchParams } from 'react-router-dom';
 
 interface FollowUp {
@@ -8,13 +9,17 @@ interface FollowUp {
   studentName: string;
   mobileNumber: string;
   interestedCourse: string;
+  admissionType?: string;
   followupDate: string;
   followupTime: string;
-  discussionNotes: string;
-  nextFollowupDate: string;
-  counselor: string;
+  discussionNotes?: string;
+  notes?: string;
+  nextFollowupDate?: string;
+  counselor?: string;
+  counselorName?: string;
   status: string;
   category?: string;
+  historyText?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -26,8 +31,16 @@ export const FollowupPage: React.FC = () => {
   const rawTab = searchParams.get('tab') as FollowupTabType | null;
   const initialTab: FollowupTabType = rawTab && ['all', 'today', 'upcoming', 'missed'].includes(rawTab) ? rawTab : 'all';
   const [tab, setTab] = useState<FollowupTabType>(initialTab);
-  const [followups, setFollowups] = useState<FollowUp[]>([]);
-  const [loading, setLoading] = useState(true);
+  const endpoint = initialTab === 'all' ? '/followups' : `/followups/${initialTab}`;
+  const cached = getCachedData(endpoint);
+  const [followups, setFollowups] = useState<FollowUp[]>(cached?.data || []);
+  const [loading, setLoading] = useState(followups.length === 0);
+
+  // Filters State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterCounselor, setFilterCounselor] = useState('All');
+  const [showFilters, setShowFilters] = useState(true);
 
   // Mark Done Modal State
   const [markDoneItem, setMarkDoneItem] = useState<FollowUp | null>(null);
@@ -35,12 +48,14 @@ export const FollowupPage: React.FC = () => {
   const [scheduleNext, setScheduleNext] = useState(false);
   const [nextDate, setNextDate] = useState('');
   const [nextTime, setNextTime] = useState('10:00');
+  const [nextDays, setNextDays] = useState('');
   const [doneActionLoading, setDoneActionLoading] = useState(false);
 
   // Reschedule Modal State
   const [rescheduleItem, setRescheduleItem] = useState<FollowUp | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduleDays, setRescheduleDays] = useState('');
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
 
   useEffect(() => {
@@ -58,17 +73,40 @@ export const FollowupPage: React.FC = () => {
     setSearchParams({ tab: newTab });
   };
 
-  const fetchTabFollowUps = async (targetTab: FollowupTabType) => {
-    setLoading(true);
+  const fetchTabFollowUps = async (targetTab: FollowupTabType, showLoading = followups.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const endpoint = targetTab === 'all' ? '/followups' : `/followups/${targetTab}`;
       const res = await axiosInstance.get(endpoint);
       setFollowups(res.data.data || []);
     } catch (err) {
       console.error('Error fetching follow-ups:', err);
-      setFollowups([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Auto calculate date helper from days input
+  const calculateDateFromDays = (daysStr: string) => {
+    if (!daysStr || isNaN(Number(daysStr))) return '';
+    const days = parseInt(daysStr, 10);
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const handleDaysChange = (
+    val: string,
+    setDays: (v: string) => void,
+    setDate: (v: string) => void
+  ) => {
+    setDays(val);
+    if (val !== '' && !isNaN(Number(val))) {
+      const calcDate = calculateDateFromDays(val);
+      if (calcDate) setDate(calcDate);
     }
   };
 
@@ -80,6 +118,7 @@ export const FollowupPage: React.FC = () => {
     setScheduleNext(false);
     setNextDate('');
     setNextTime('10:00');
+    setNextDays('');
   };
 
   // Submit Mark Done
@@ -120,6 +159,7 @@ export const FollowupPage: React.FC = () => {
     setRescheduleItem(item);
     setRescheduleDate(item.followupDate || new Date().toISOString().split('T')[0]);
     setRescheduleTime(item.followupTime || '10:00');
+    setRescheduleDays('');
   };
 
   // Submit Reschedule
@@ -143,39 +183,105 @@ export const FollowupPage: React.FC = () => {
     }
   };
 
-  return (
-    <div>
-      <div className="tabs">
-        <div
-          className={`tab ${tab === 'all' ? 'active' : ''}`}
-          onClick={() => handleTabChange('all')}
-        >
-          <i className="ti ti-list-check" style={{ marginRight: '6px' }}></i> All Follow-ups
-        </div>
-        <div
-          className={`tab ${tab === 'today' ? 'active' : ''}`}
-          onClick={() => handleTabChange('today')}
-        >
-          <i className="ti ti-calendar-event" style={{ marginRight: '6px' }}></i> Today
-        </div>
-        <div
-          className={`tab ${tab === 'upcoming' ? 'active' : ''}`}
-          onClick={() => handleTabChange('upcoming')}
-        >
-          <i className="ti ti-calendar-plus" style={{ marginRight: '6px' }}></i> Upcoming
-        </div>
-        <div
-          className={`tab ${tab === 'missed' ? 'active' : ''}`}
-          onClick={() => handleTabChange('missed')}
-        >
-          <i className="ti ti-alert-circle" style={{ marginRight: '6px' }}></i> Missed
-        </div>
-      </div>
+  const counselorOptions = Array.from(new Set(followups.map((f) => f.counselor).filter(Boolean)));
 
-      <div className="card">
-        {loading ? (
-          <div className="empty" style={{ padding: '32px' }}>Loading follow-ups...</div>
-        ) : followups.length === 0 ? (
+  const filteredFollowups = followups.filter((f) => {
+    const matchesSearch =
+      !searchQuery ||
+      (f.studentName && f.studentName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (f.mobileNumber && f.mobileNumber.includes(searchQuery)) ||
+      (f.interestedCourse && f.interestedCourse.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (f.discussionNotes && f.discussionNotes.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesStatus = filterStatus === 'All' || f.status === filterStatus;
+    const matchesCounselor = filterCounselor === 'All' || f.counselor === filterCounselor;
+
+    return matchesSearch && matchesStatus && matchesCounselor;
+  });
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="card" style={{ padding: '20px', borderRadius: '12px' }}>
+        {/* Card Header Actions */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#2d3748' }}>Follow-up List</h3>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowFilters(!showFilters)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '6px' }}
+            >
+              <i className="ti ti-filter"></i> Filter
+            </button>
+          </div>
+        </div>
+
+        {/* Filters Bar (Matching Fee Management dropdown filter style in Image 2) */}
+        {showFilters && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
+            {/* Search */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4a5568', marginBottom: '4px' }}>Search</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  placeholder="Search by Student Name / Mobile / Course"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ width: '100%', paddingLeft: '32px', height: '38px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px' }}
+                />
+                <i className="ti ti-search" style={{ position: 'absolute', left: '10px', top: '11px', color: '#a0aec0' }}></i>
+              </div>
+            </div>
+
+            {/* Follow-up Category / Type Dropdown */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4a5568', marginBottom: '4px' }}>Follow-up Type</label>
+              <select
+                value={tab}
+                onChange={(e) => handleTabChange(e.target.value as FollowupTabType)}
+                style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px', background: '#fff', padding: '0 10px' }}
+              >
+                <option value="all">All Follow-ups</option>
+                <option value="today">Today</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="missed">Missed</option>
+              </select>
+            </div>
+
+            {/* Counselor Filter */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4a5568', marginBottom: '4px' }}>Counselor</label>
+              <select
+                value={filterCounselor}
+                onChange={(e) => setFilterCounselor(e.target.value)}
+                style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px', background: '#fff', padding: '0 10px' }}
+              >
+                <option value="All">All</option>
+                {counselorOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4a5568', marginBottom: '4px' }}>Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px', background: '#fff', padding: '0 10px' }}
+              >
+                <option value="All">All</option>
+                <option value="Pending">Pending</option>
+                <option value="Done">Done</option>
+                <option value="Missed">Missed</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {filteredFollowups.length === 0 && !loading ? (
           <div className="empty" style={{ padding: '40px' }}>
             <i className="ti ti-calendar-time" style={{ fontSize: '36px', color: '#a0aec0', marginBottom: '8px' }}></i>
             <div style={{ fontSize: '15px', fontWeight: 600, color: '#4a5568' }}>No follow-ups scheduled</div>
@@ -202,7 +308,7 @@ export const FollowupPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {followups.map((f) => {
+                {filteredFollowups.map((f) => {
                   const cat = f.category || (f.status === 'Missed' ? 'Missed' : 'Today');
                   const isDone = f.status?.toLowerCase() === 'done';
                   return (
@@ -247,45 +353,45 @@ export const FollowupPage: React.FC = () => {
                           {f.status}
                         </span>
                       </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          disabled={isDone}
-                          style={{
-                            backgroundColor: isDone ? '#edf2f7' : '#f0fff4',
-                            color: isDone ? '#a0aec0' : '#276749',
-                            borderColor: isDone ? '#e2e8f0' : '#c6f6d5',
-                            padding: '4px 10px',
-                            fontSize: '12px',
-                            cursor: isDone ? 'not-allowed' : 'pointer',
-                            opacity: isDone ? 0.6 : 1,
-                          }}
-                          onClick={() => !isDone && openMarkDoneModal(f)}
-                        >
-                          <i className="ti ti-check" style={{ marginRight: '4px' }}></i> Mark Done
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          disabled={isDone}
-                          style={{
-                            backgroundColor: isDone ? '#edf2f7' : '#ebf8ff',
-                            color: isDone ? '#a0aec0' : '#2b6cb0',
-                            borderColor: isDone ? '#e2e8f0' : '#bee3f8',
-                            padding: '4px 10px',
-                            fontSize: '12px',
-                            cursor: isDone ? 'not-allowed' : 'pointer',
-                            opacity: isDone ? 0.6 : 1,
-                          }}
-                          onClick={() => !isDone && openRescheduleModal(f)}
-                        >
-                          <i className="ti ti-calendar" style={{ marginRight: '4px' }}></i> Reschedule
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            disabled={isDone}
+                            style={{
+                              backgroundColor: isDone ? '#edf2f7' : '#f0fff4',
+                              color: isDone ? '#a0aec0' : '#276749',
+                              borderColor: isDone ? '#e2e8f0' : '#c6f6d5',
+                              padding: '4px 10px',
+                              fontSize: '12px',
+                              cursor: isDone ? 'not-allowed' : 'pointer',
+                              opacity: isDone ? 0.6 : 1,
+                            }}
+                            onClick={() => !isDone && openMarkDoneModal(f)}
+                          >
+                            <i className="ti ti-check" style={{ marginRight: '4px' }}></i> Mark Done
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            disabled={isDone}
+                            style={{
+                              backgroundColor: isDone ? '#edf2f7' : '#ebf8ff',
+                              color: isDone ? '#a0aec0' : '#2b6cb0',
+                              borderColor: isDone ? '#e2e8f0' : '#bee3f8',
+                              padding: '4px 10px',
+                              fontSize: '12px',
+                              cursor: isDone ? 'not-allowed' : 'pointer',
+                              opacity: isDone ? 0.6 : 1,
+                            }}
+                            onClick={() => !isDone && openRescheduleModal(f)}
+                          >
+                            <i className="ti ti-calendar" style={{ marginRight: '4px' }}></i> Reschedule
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -333,14 +439,27 @@ export const FollowupPage: React.FC = () => {
                 </label>
 
                 {scheduleNext && (
-                  <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div className="form-field">
-                      <label style={{ fontSize: '11.5px' }}>Next Date</label>
-                      <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} required={scheduleNext} />
+                      <label style={{ fontSize: '11.5px' }}>Number of Days (Quick Calculate)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 7 (days from today)"
+                        value={nextDays}
+                        onChange={(e) => handleDaysChange(e.target.value, setNextDays, setNextDate)}
+                      />
                     </div>
-                    <div className="form-field">
-                      <label style={{ fontSize: '11.5px' }}>Next Time</label>
-                      <input type="time" value={nextTime} onChange={(e) => setNextTime(e.target.value)} />
+
+                    <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div className="form-field">
+                        <label style={{ fontSize: '11.5px' }}>Next Date</label>
+                        <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} required={scheduleNext} />
+                      </div>
+                      <div className="form-field">
+                        <label style={{ fontSize: '11.5px' }}>Next Time</label>
+                        <input type="time" value={nextTime} onChange={(e) => setNextTime(e.target.value)} />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -372,6 +491,20 @@ export const FollowupPage: React.FC = () => {
             <form onSubmit={handleRescheduleSubmit}>
               <div style={{ marginBottom: '14px', fontSize: '13px', color: '#4a5568' }}>
                 Student: <strong>{rescheduleItem.studentName}</strong> ({rescheduleItem.mobileNumber})
+              </div>
+
+              <div className="form-field" style={{ marginBottom: '14px' }}>
+                <label>Number of Days (Quick Calculate)</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 7 (days from today)"
+                  value={rescheduleDays}
+                  onChange={(e) => handleDaysChange(e.target.value, setRescheduleDays, setRescheduleDate)}
+                />
+                <span style={{ fontSize: '11.5px', color: '#718096', marginTop: '2px', display: 'block' }}>
+                  Entering days auto-calculates Next Follow-up Date below. You can also edit the date manually.
+                </span>
               </div>
 
               <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>

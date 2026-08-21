@@ -5,28 +5,30 @@ import { UserFormModal } from './components/UserFormModal';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { ActionButtons } from '../../../components/ActionButtons';
 
+import { getCachedData } from '../../../config/apiCache';
+
 export const UserMasterPage: React.FC = () => {
-  const [users, setUsers] = useState<UserMasterDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedData('/users');
+  const [users, setUsers] = useState<UserMasterDto[]>(cached?.data || []);
+  const [loading, setLoading] = useState(users.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<UserMasterDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchUsers = async () => {
-    setLoading(true);
+  const fetchUsers = async (showLoading = users.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await getUsers();
       setUsers(data || []);
     } catch (err) {
       console.error(err);
-      setUsers([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(users.length === 0);
   }, []);
 
   const handleOpenAdd = () => {
@@ -45,14 +47,14 @@ export const UserMasterPage: React.FC = () => {
     } else {
       await createUser(data);
     }
-    await fetchUsers();
+    await fetchUsers(false);
   };
 
   const handleConfirmDelete = async () => {
     if (deletingId) {
       try {
         await deleteUser(deletingId);
-        await fetchUsers();
+        await fetchUsers(false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -70,9 +72,7 @@ export const UserMasterPage: React.FC = () => {
       </div>
 
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading users...</div>
-        ) : users.length === 0 ? (
+        {users.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-users"></i>
             <div>No users added yet</div>

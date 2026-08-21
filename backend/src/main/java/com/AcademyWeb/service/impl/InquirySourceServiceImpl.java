@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class InquirySourceServiceImpl implements InquirySourceService {
 
     @Autowired
@@ -46,6 +49,7 @@ public class InquirySourceServiceImpl implements InquirySourceService {
     }
 
     @Override
+    @Transactional
     public InquirySourceDto createInquirySource(InquirySourceDto dto) {
         InquirySource source = mapToEntity(dto);
         InquirySource saved = inquirySourceRepository.save(source);
@@ -53,6 +57,7 @@ public class InquirySourceServiceImpl implements InquirySourceService {
     }
 
     @Override
+    @Transactional
     public InquirySourceDto updateInquirySource(Long id, InquirySourceDto dto) {
         InquirySource existing = inquirySourceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Inquiry Source not found with ID: " + id));
@@ -62,6 +67,7 @@ public class InquirySourceServiceImpl implements InquirySourceService {
     }
 
     @Override
+    @Transactional
     public void deleteInquirySource(Long id) {
         if (!inquirySourceRepository.existsById(id)) {
             throw new ResourceNotFoundException("Inquiry Source not found with ID: " + id);

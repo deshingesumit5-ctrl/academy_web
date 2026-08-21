@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../config/axiosInstance';
+import { getCachedData } from '../../config/apiCache';
 import { getExams } from '../master/exam/api/examApi';
 import type { ExamDto } from '../master/exam/api/examApi';
 import { getBatches } from '../master/batch/api/batchApi';
@@ -23,11 +24,12 @@ interface MarksheetRecord {
 }
 
 export const MarksheetPage: React.FC = () => {
-  const [marksheets, setMarksheets] = useState<MarksheetRecord[]>([]);
+  const cachedMarksheets = getCachedData('/marksheets');
+  const [marksheets, setMarksheets] = useState<MarksheetRecord[]>(cachedMarksheets?.data || []);
   const [students, setStudents] = useState<any[]>([]);
   const [batches, setBatches] = useState<BatchDto[]>([]);
   const [exams, setExams] = useState<ExamDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(marksheets.length === 0);
 
   // Form State
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -42,11 +44,11 @@ export const MarksheetPage: React.FC = () => {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchData();
+    fetchData(marksheets.length === 0);
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (showLoading = marksheets.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const [sRes, bRes, eRes, mRes] = await Promise.all([
         axiosInstance.get('/students'),
@@ -337,9 +339,7 @@ export const MarksheetPage: React.FC = () => {
           </h3>
         </div>
 
-        {loading ? (
-          <div className="empty">Loading marksheets...</div>
-        ) : marksheets.length === 0 ? (
+        {marksheets.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-file-off" style={{ fontSize: '36px', color: '#A0AEC0', marginBottom: '8px' }}></i>
             <div>No marksheets uploaded yet</div>

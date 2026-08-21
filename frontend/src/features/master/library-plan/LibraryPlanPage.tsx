@@ -5,28 +5,30 @@ import { LibraryPlanFormModal } from './components/LibraryPlanFormModal';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { ActionButtons } from '../../../components/ActionButtons';
 
+import { getCachedData } from '../../../config/apiCache';
+
 export const LibraryPlanPage: React.FC = () => {
-  const [plans, setPlans] = useState<LibraryPlanDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedData('/library-plans');
+  const [plans, setPlans] = useState<LibraryPlanDto[]>(cached?.data || []);
+  const [loading, setLoading] = useState(plans.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<LibraryPlanDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchPlans = async () => {
-    setLoading(true);
+  const fetchPlans = async (showLoading = plans.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await getLibraryPlans();
       setPlans(data || []);
     } catch (err) {
       console.error(err);
-      setPlans([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPlans();
+    fetchPlans(plans.length === 0);
   }, []);
 
   const handleOpenAdd = () => {
@@ -45,14 +47,14 @@ export const LibraryPlanPage: React.FC = () => {
     } else {
       await createLibraryPlan(data);
     }
-    await fetchPlans();
+    await fetchPlans(false);
   };
 
   const handleConfirmDelete = async () => {
     if (deletingId) {
       try {
         await deleteLibraryPlan(deletingId);
-        await fetchPlans();
+        await fetchPlans(false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -70,9 +72,7 @@ export const LibraryPlanPage: React.FC = () => {
       </div>
 
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading library plans...</div>
-        ) : plans.length === 0 ? (
+        {plans.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-books"></i>
             <div>No library plans added yet</div>

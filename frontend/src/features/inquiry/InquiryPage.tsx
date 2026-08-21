@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../config/axiosInstance';
+import { getCachedData } from '../../config/apiCache';
 import { ActionButtons } from '../../components/ActionButtons';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { getCourses, type CourseDto } from '../master/course/api/courseApi';
@@ -12,25 +13,29 @@ import {
   FieldError,
 } from '../../validations';
 
-interface Inquiry {
-  inquiryId: number;
+export interface Inquiry {
+  inquiryId?: number;
   studentName: string;
-  parentName: string;
+  parentName?: string;
   mobileNumber: string;
-  interestedCourse: string;
+  interestedCourse?: string;
   admissionType?: string;
-  inquirySource: string;
-  counselorAssigned: string;
-  remarks: string;
+  inquirySource?: string;
+  sourceOfInquiry?: string;
+  counselorAssigned?: string;
+  assignedCounselor?: string;
+  nextFollowupDate?: string;
+  remarks?: string;
   status: 'Open' | 'Follow-up' | 'Converted' | 'Lost';
 }
 
 export const InquiryPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'form' | 'list'>('form');
-  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const cachedInquiries = getCachedData('/inquiries');
+  const [inquiries, setInquiries] = useState<Inquiry[]>(cachedInquiries?.data || []);
   const [courses, setCourses] = useState<CourseDto[]>([]);
   const [libraryPlans, setLibraryPlans] = useState<LibraryPlanDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(inquiries.length === 0);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -61,6 +66,7 @@ export const InquiryPage: React.FC = () => {
   const [fuNextDate, setFuNextDate] = useState('');
   const [fuCounselor, setFuCounselor] = useState('');
   const [fuStatus, setFuStatus] = useState<'Pending' | 'Done' | 'Missed'>('Pending');
+  const [fuNextDays, setFuNextDays] = useState('');
   const [fuSaving, setFuSaving] = useState(false);
 
   // Inquiry History Modal State (TASK 3)
@@ -80,6 +86,7 @@ export const InquiryPage: React.FC = () => {
     setFuTime('10:00');
     setFuNotes('');
     setFuNextDate('');
+    setFuNextDays('');
     setFuCounselor(inquiry.counselorAssigned || 'Sales');
     setFuStatus('Pending');
     setFollowUpModalOpen(true);
@@ -141,14 +148,13 @@ export const InquiryPage: React.FC = () => {
     }
   };
 
-  const fetchInquiries = async () => {
-    setLoading(true);
+  const fetchInquiries = async (showLoading = inquiries.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await axiosInstance.get('/inquiries');
       setInquiries(res.data.data || []);
     } catch (err) {
       console.error(err);
-      setInquiries([]);
     } finally {
       setLoading(false);
     }
@@ -222,7 +228,7 @@ export const InquiryPage: React.FC = () => {
   };
 
   const handleEditInquiry = (inquiry: Inquiry) => {
-    setEditingInquiryId(inquiry.inquiryId);
+    setEditingInquiryId(inquiry.inquiryId ?? null);
     setStudentName(inquiry.studentName || '');
     setParentName(inquiry.parentName || '');
     setMobileNumber(inquiry.mobileNumber || '');
@@ -609,9 +615,7 @@ export const InquiryPage: React.FC = () => {
               </div>
             </div>
 
-            {loading ? (
-              <div className="empty" style={{ padding: '24px' }}>Loading inquiries...</div>
-            ) : filteredInquiries.length === 0 ? (
+            {filteredInquiries.length === 0 && !loading ? (
               <div className="empty" style={{ padding: '24px' }}>No inquiries found</div>
             ) : (
               <div className="table-responsive">
@@ -648,7 +652,7 @@ export const InquiryPage: React.FC = () => {
                         <td>
                           <select
                             value={i.status}
-                            onChange={(e) => handleQuickStatusChange(i.inquiryId, e.target.value as any)}
+                            onChange={(e) => handleQuickStatusChange(i.inquiryId!, e.target.value as any)}
                             className={`badge ${
                               i.status === 'Open' ? 'badge-blue' :
                               i.status === 'Follow-up' ? 'badge-amber' :
@@ -690,7 +694,7 @@ export const InquiryPage: React.FC = () => {
                             </button>
                             <ActionButtons
                               onEdit={() => handleEditInquiry(i)}
-                              onDelete={() => setDeletingId(i.inquiryId)}
+                              onDelete={() => setDeletingId(i.inquiryId ?? null)}
                             />
                           </div>
                         </td>
@@ -749,9 +753,32 @@ export const InquiryPage: React.FC = () => {
                 </div>
 
                 <div className="form-field">
+                  <label>Number of Days (For Next Date)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 7 (days from today)"
+                    value={fuNextDays}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFuNextDays(val);
+                      if (val !== '' && !isNaN(Number(val))) {
+                        const days = parseInt(val, 10);
+                        const d = new Date();
+                        d.setDate(d.getDate() + days);
+                        const yyyy = d.getFullYear();
+                        const mm = String(d.getMonth() + 1).padStart(2, '0');
+                        const dd = String(d.getDate()).padStart(2, '0');
+                        setFuNextDate(`${yyyy}-${mm}-${dd}`);
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="form-field">
                   <label>Next Follow-up Date (Optional)</label>
                   <input type="date" value={fuNextDate} onChange={(e) => setFuNextDate(e.target.value)} />
-                  <span style={{ fontSize: '11px', color: '#718096', marginTop: '2px', display: 'block' }}>Automatically schedules 2nd entry in Upcoming</span>
+                  <span style={{ fontSize: '11px', color: '#718096', marginTop: '2px', display: 'block' }}>Entering days calculates date (manually editable)</span>
                 </div>
 
                 <div className="form-field">
@@ -759,7 +786,7 @@ export const InquiryPage: React.FC = () => {
                   <input type="text" value={fuCounselor} onChange={(e) => setFuCounselor(e.target.value)} placeholder="Counselor name" />
                 </div>
 
-                <div className="form-field" style={{ gridColumn: 'span 2' }}>
+                <div className="form-field">
                   <label>Status</label>
                   <select value={fuStatus} onChange={(e) => setFuStatus(e.target.value as any)}>
                     <option value="Pending">Pending</option>

@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class ExamServiceImpl implements ExamService {
 
     @Autowired
@@ -48,6 +51,7 @@ public class ExamServiceImpl implements ExamService {
     }
 
     @Override
+    @Transactional
     public ExamDto createExam(ExamDto dto) {
         ExamMaster exam = mapToEntity(dto);
         ExamMaster saved = examMasterRepository.save(exam);
@@ -55,6 +59,7 @@ public class ExamServiceImpl implements ExamService {
     }
 
     @Override
+    @Transactional
     public ExamDto updateExam(Long id, ExamDto dto) {
         ExamMaster existing = examMasterRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found with ID: " + id));
@@ -65,6 +70,7 @@ public class ExamServiceImpl implements ExamService {
     }
 
     @Override
+    @Transactional
     public void deleteExam(Long id) {
         if (!examMasterRepository.existsById(id)) {
             throw new ResourceNotFoundException("Exam not found with ID: " + id);

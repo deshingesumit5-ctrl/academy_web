@@ -33,6 +33,7 @@ import { ReportDetailPage } from './features/reports/ReportDetailPage';
 
 import { RolesPage } from './features/roles/RolesPage';
 import { RoleFormPage } from './features/roles/RoleFormPage';
+import { prefetchAllData } from './config/prefetch';
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
@@ -77,6 +78,10 @@ const SuperAdminRoute: React.FC<{ children: React.ReactElement }> = ({ children 
 const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+
+  React.useEffect(() => {
+    prefetchAllData();
+  }, []);
 
   let currentTitle = pageTitles[location.pathname];
   if (!currentTitle && location.pathname.startsWith('/roles/edit')) {

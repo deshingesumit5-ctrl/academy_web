@@ -10,28 +10,30 @@ import { FeeStructureFormModal } from './components/FeeStructureFormModal';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { ActionButtons } from '../../../components/ActionButtons';
 
+import { getCachedData } from '../../../config/apiCache';
+
 export const FeeStructurePage: React.FC = () => {
-  const [feeStructures, setFeeStructures] = useState<FeeStructureDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedData('/fee-structures');
+  const [feeStructures, setFeeStructures] = useState<FeeStructureDto[]>(cached?.data || []);
+  const [loading, setLoading] = useState(feeStructures.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FeeStructureDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchFeeStructures = async () => {
-    setLoading(true);
+  const fetchFeeStructures = async (showLoading = feeStructures.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await getFeeStructures();
       setFeeStructures(data || []);
     } catch (err) {
       console.error(err);
-      setFeeStructures([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchFeeStructures();
+    fetchFeeStructures(feeStructures.length === 0);
   }, []);
 
   const handleOpenAdd = () => {
@@ -50,14 +52,14 @@ export const FeeStructurePage: React.FC = () => {
     } else {
       await createFeeStructure(data);
     }
-    await fetchFeeStructures();
+    await fetchFeeStructures(false);
   };
 
   const handleConfirmDelete = async () => {
     if (deletingId) {
       try {
         await deleteFeeStructure(deletingId);
-        await fetchFeeStructures();
+        await fetchFeeStructures(false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -75,9 +77,7 @@ export const FeeStructurePage: React.FC = () => {
       </div>
 
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading fee structures...</div>
-        ) : feeStructures.length === 0 ? (
+        {feeStructures.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-cash"></i>
             <div>No fee structures added yet</div>

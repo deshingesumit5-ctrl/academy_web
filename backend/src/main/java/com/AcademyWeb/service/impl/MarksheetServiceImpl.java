@@ -17,7 +17,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class MarksheetServiceImpl implements MarksheetService {
 
     @Autowired
@@ -57,6 +60,7 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
     @Override
+    @Transactional
     public MarksheetDto saveMarksheet(MarksheetDto dto) {
         Student student = studentRepository.findById(dto.getStudentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
@@ -85,6 +89,7 @@ public class MarksheetServiceImpl implements MarksheetService {
     }
 
     @Override
+    @Transactional
     public void deleteMarksheet(Long id) {
         if (!marksheetRepository.existsById(id)) {
             throw new ResourceNotFoundException("Marksheet not found with ID: " + id);

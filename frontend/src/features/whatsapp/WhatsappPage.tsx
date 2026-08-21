@@ -332,9 +332,9 @@ export const WhatsappPage: React.FC = () => {
               style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '13.5px' }}
             >
               <option value="All">All</option>
-              <option value="ACADEMY">ACADEMY</option>
-              <option value="LIBRARY">LIBRARY</option>
-              <option value="BOTH">BOTH</option>
+              <option value="ACADEMY">Academy</option>
+              <option value="LIBRARY">Library</option>
+              <option value="BOTH">Both</option>
             </select>
           </div>
 
@@ -648,13 +648,7 @@ export const WhatsappPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: '#6B7280' }}>
-                      Loading students...
-                    </td>
-                  </tr>
-                ) : currentRows.length === 0 ? (
+                {currentRows.length === 0 && !loading ? (
                   <tr>
                     <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: '#6B7280' }}>
                       No students found matching filters

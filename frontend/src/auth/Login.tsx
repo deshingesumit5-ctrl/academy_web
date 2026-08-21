@@ -37,7 +37,7 @@ export const Login: React.FC = () => {
       <div className="login-right-panel">
         <div className="login-square-card">
           <div className="login-logo-circle">
-            <i className="ti ti-school"></i>
+            <img src="/logo.png" alt="Logo" className="login-logo-img" />
           </div>
           <div className="login-brand-subtitle">Academy & Library Management</div>
           <h2>Welcome Back</h2>

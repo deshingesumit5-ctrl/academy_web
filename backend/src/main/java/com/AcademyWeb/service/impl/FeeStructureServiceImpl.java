@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class FeeStructureServiceImpl implements FeeStructureService {
 
     @Autowired
@@ -97,6 +100,7 @@ public class FeeStructureServiceImpl implements FeeStructureService {
     }
 
     @Override
+    @Transactional
     public AcademyFeePlanDto createAcademyFeePlan(AcademyFeePlanDto dto) {
         Course course = null;
         if (dto.getCourseId() != null) {
@@ -117,6 +121,7 @@ public class FeeStructureServiceImpl implements FeeStructureService {
     }
 
     @Override
+    @Transactional
     public AcademyFeePlanDto updateAcademyFeePlan(Long id, AcademyFeePlanDto dto) {
         AcademyFeePlan plan = academyFeePlanRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Fee plan not found"));
@@ -136,6 +141,7 @@ public class FeeStructureServiceImpl implements FeeStructureService {
     }
 
     @Override
+    @Transactional
     public LibraryFeePlanDto createLibraryFeePlan(LibraryFeePlanDto dto) {
         LibraryPlan libraryPlan = null;
         if (dto.getPlanId() != null) {
@@ -156,6 +162,7 @@ public class FeeStructureServiceImpl implements FeeStructureService {
     }
 
     @Override
+    @Transactional
     public InstallmentPlanDto createInstallmentPlan(InstallmentPlanDto dto) {
         AcademyFeePlan academyFeePlan = null;
         if (dto.getAcademyFeePlanId() != null) {
@@ -180,6 +187,7 @@ public class FeeStructureServiceImpl implements FeeStructureService {
     }
 
     @Override
+    @Transactional
     public DiscountRuleDto createDiscountRule(DiscountRuleDto dto) {
         AcademyFeePlan academyFeePlan = null;
         if (dto.getAcademyFeePlanId() != null) {
@@ -206,21 +214,25 @@ public class FeeStructureServiceImpl implements FeeStructureService {
     }
 
     @Override
+    @Transactional
     public void deleteAcademyFeePlan(Long id) {
         academyFeePlanRepository.deleteById(id);
     }
 
     @Override
+    @Transactional
     public void deleteLibraryFeePlan(Long id) {
         libraryFeePlanRepository.deleteById(id);
     }
 
     @Override
+    @Transactional
     public void deleteInstallmentPlan(Long id) {
         installmentPlanRepository.deleteById(id);
     }
 
     @Override
+    @Transactional
     public void deleteDiscountRule(Long id) {
         discountRuleRepository.deleteById(id);
     }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../config/axiosInstance';
+import { getCachedData } from '../../config/apiCache';
 
 interface AttendanceLog {
   attendanceId: number;
@@ -14,18 +15,19 @@ interface AttendanceLog {
 
 export const AttendancePage: React.FC = () => {
   const [tab, setTab] = useState<'device' | 'excel' | 'logs'>('device');
-  const [logs, setLogs] = useState<AttendanceLog[]>([]);
-  const [loading, setLoading] = useState(false);
+  const cached = getCachedData('/attendance');
+  const [logs, setLogs] = useState<AttendanceLog[]>(cached?.data || []);
+  const [loading, setLoading] = useState(logs.length === 0);
 
   useEffect(() => {
-    fetchLogs();
+    fetchLogs(logs.length === 0);
   }, []);
 
-  const fetchLogs = async () => {
-    setLoading(true);
+  const fetchLogs = async (showLoading = logs.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await axiosInstance.get('/attendance');
-      setLogs(res.data.data);
+      setLogs(res.data?.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -92,7 +94,7 @@ export const AttendancePage: React.FC = () => {
             <p style={{ fontSize: '12.5px', color: '#718096', margin: '10px 0' }}>
               Pull recent biometric face recognition punch events into attendance log.
             </p>
-            <button className="btn btn-primary" onClick={fetchLogs}>
+            <button className="btn btn-primary" onClick={() => fetchLogs(true)}>
               <i className="ti ti-refresh"></i>Sync Now
             </button>
           </div>
@@ -118,9 +120,7 @@ export const AttendancePage: React.FC = () => {
             <span>Today's Attendance Log</span>
           </div>
           <div className="card">
-            {loading ? (
-              <div className="empty">Loading logs...</div>
-            ) : logs.length === 0 ? (
+            {logs.length === 0 && !loading ? (
               <div className="empty">
                 <i className="ti ti-calendar-check"></i>
                 <div>No attendance records logged today</div>

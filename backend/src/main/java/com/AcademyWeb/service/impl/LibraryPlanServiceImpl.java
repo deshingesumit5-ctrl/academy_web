@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class LibraryPlanServiceImpl implements LibraryPlanService {
 
     @Autowired
@@ -52,6 +55,7 @@ public class LibraryPlanServiceImpl implements LibraryPlanService {
     }
 
     @Override
+    @Transactional
     public LibraryPlanDto createLibraryPlan(LibraryPlanDto dto) {
         LibraryPlan plan = mapToEntity(dto);
         LibraryPlan saved = libraryPlanRepository.save(plan);
@@ -59,6 +63,7 @@ public class LibraryPlanServiceImpl implements LibraryPlanService {
     }
 
     @Override
+    @Transactional
     public LibraryPlanDto updateLibraryPlan(Long id, LibraryPlanDto dto) {
         LibraryPlan existing = libraryPlanRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Library Plan not found with ID: " + id));
@@ -71,6 +76,7 @@ public class LibraryPlanServiceImpl implements LibraryPlanService {
     }
 
     @Override
+    @Transactional
     public void deleteLibraryPlan(Long id) {
         if (!libraryPlanRepository.existsById(id)) {
             throw new ResourceNotFoundException("Library Plan not found with ID: " + id);

@@ -166,11 +166,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         {/* Brand Logo & Name */}
         <div className="brand">
           <div className="brand-icon">
-            <i className="ti ti-school"></i>
+            <img src="/logo.png" alt="Logo" className="brand-logo-img" />
           </div>
           <div className="brand-info">
-            <div className="brand-text">Academy & Library</div>
-            <div className="brand-sub">Management system</div>
+            <div className="brand-text">Ajinkya Foundation</div>
+            <div className="brand-sub"> Academy & Library Management</div>
           </div>
         </div>
 

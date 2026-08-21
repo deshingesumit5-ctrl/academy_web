@@ -12,7 +12,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class TaskServiceImpl implements TaskService {
 
     @Autowired
@@ -52,6 +55,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    @Transactional
     public TaskDto createTask(TaskDto dto) {
         TaskEntity entity = mapToEntity(dto);
         TaskEntity saved = taskRepository.save(entity);
@@ -59,6 +63,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    @Transactional
     public TaskDto updateTask(Long id, TaskDto dto) {
         TaskEntity existing = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + id));
@@ -78,6 +83,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    @Transactional
     public void deleteTask(Long id) {
         if (!taskRepository.existsById(id)) {
             throw new ResourceNotFoundException("Task not found with ID: " + id);

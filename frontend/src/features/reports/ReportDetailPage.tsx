@@ -743,12 +743,7 @@ export const ReportDetailPage: React.FC = () => {
 
       {/* Clean Data Table Card */}
       <div className="card">
-        {loading ? (
-          <div className="empty" style={{ padding: '40px' }}>
-            <i className="ti ti-loader rotate" style={{ animation: 'spin 1s linear infinite' }}></i>
-            <p>Loading report data...</p>
-          </div>
-        ) : data.length === 0 ? (
+        {data.length === 0 && !loading ? (
           <div className="empty" style={{ padding: '40px' }}>
             <i className="ti ti-folder-off" style={{ fontSize: '32px', color: 'var(--slate-light)', marginBottom: '8px' }}></i>
             <h4 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--slate)', marginBottom: '4px' }}>No data available</h4>

@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class AcademyServiceImpl implements AcademyService {
 
     @Autowired
@@ -53,6 +56,7 @@ public class AcademyServiceImpl implements AcademyService {
     }
 
     @Override
+    @Transactional
     public AcademyDto createAcademy(AcademyDto dto) {
         Academy academy = mapToEntity(dto);
         Academy saved = academyRepository.save(academy);
@@ -60,6 +64,7 @@ public class AcademyServiceImpl implements AcademyService {
     }
 
     @Override
+    @Transactional
     public AcademyDto updateAcademy(Long id, AcademyDto dto) {
         Academy existing = academyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Academy not found with ID: " + id));
@@ -72,6 +77,7 @@ public class AcademyServiceImpl implements AcademyService {
     }
 
     @Override
+    @Transactional
     public void deleteAcademy(Long id) {
         if (!academyRepository.existsById(id)) {
             throw new ResourceNotFoundException("Academy not found with ID: " + id);

@@ -5,28 +5,30 @@ import { InquirySourceFormModal } from './components/InquirySourceFormModal';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { ActionButtons } from '../../../components/ActionButtons';
 
+import { getCachedData } from '../../../config/apiCache';
+
 export const InquirySourcePage: React.FC = () => {
-  const [sources, setSources] = useState<InquirySourceDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedData('/inquiry-sources');
+  const [sources, setSources] = useState<InquirySourceDto[]>(cached?.data || []);
+  const [loading, setLoading] = useState(sources.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InquirySourceDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchSources = async () => {
-    setLoading(true);
+  const fetchSources = async (showLoading = sources.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await getInquirySources();
       setSources(data || []);
     } catch (err) {
       console.error(err);
-      setSources([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSources();
+    fetchSources(sources.length === 0);
   }, []);
 
   const handleOpenAdd = () => {
@@ -45,14 +47,14 @@ export const InquirySourcePage: React.FC = () => {
     } else {
       await createInquirySource(data);
     }
-    await fetchSources();
+    await fetchSources(false);
   };
 
   const handleConfirmDelete = async () => {
     if (deletingId) {
       try {
         await deleteInquirySource(deletingId);
-        await fetchSources();
+        await fetchSources(false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -70,9 +72,7 @@ export const InquirySourcePage: React.FC = () => {
       </div>
 
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading inquiry sources...</div>
-        ) : sources.length === 0 ? (
+        {sources.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-route"></i>
             <div>No inquiry sources added yet</div>

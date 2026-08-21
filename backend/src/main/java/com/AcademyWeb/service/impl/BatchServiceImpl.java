@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class BatchServiceImpl implements BatchService {
 
     @Autowired
@@ -52,6 +55,7 @@ public class BatchServiceImpl implements BatchService {
     }
 
     @Override
+    @Transactional
     public BatchDto createBatch(BatchDto dto) {
         Batch batch = mapToEntity(dto);
         Batch saved = batchRepository.save(batch);
@@ -59,6 +63,7 @@ public class BatchServiceImpl implements BatchService {
     }
 
     @Override
+    @Transactional
     public BatchDto updateBatch(Long id, BatchDto dto) {
         Batch existing = batchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Batch not found with ID: " + id));
@@ -71,6 +76,7 @@ public class BatchServiceImpl implements BatchService {
     }
 
     @Override
+    @Transactional
     public void deleteBatch(Long id) {
         if (!batchRepository.existsById(id)) {
             throw new ResourceNotFoundException("Batch not found with ID: " + id);

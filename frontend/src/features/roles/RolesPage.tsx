@@ -14,14 +14,17 @@ interface Role {
   createdAt: string;
 }
 
+import { getCachedData } from '../../config/apiCache';
+
 export const RolesPage: React.FC = () => {
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedRoles = getCachedData('/roles');
+  const [roles, setRoles] = useState<Role[]>(cachedRoles?.data || []);
+  const [loading, setLoading] = useState(roles.length === 0);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const fetchRoles = async () => {
-    setLoading(true);
+  const fetchRoles = async (showLoading = roles.length === 0) => {
+    if (showLoading) setLoading(true);
     setError('');
     try {
       const res = await axiosInstance.get('/roles');
@@ -82,9 +85,7 @@ export const RolesPage: React.FC = () => {
 
       {/* Roles List Card */}
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading roles...</div>
-        ) : roles.length === 0 ? (
+        {roles.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-shield"></i>
             <div>No roles created yet</div>

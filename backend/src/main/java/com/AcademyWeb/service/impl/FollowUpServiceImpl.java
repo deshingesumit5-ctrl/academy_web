@@ -15,7 +15,10 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class FollowUpServiceImpl implements FollowUpService {
 
     @Autowired
@@ -91,6 +94,7 @@ public class FollowUpServiceImpl implements FollowUpService {
     }
 
     @Override
+    @Transactional
     public FollowUpDto createFollowUp(FollowUpDto dto) {
         Inquiry inquiry = null;
         if (dto.getInquiryId() != null) {
@@ -137,6 +141,7 @@ public class FollowUpServiceImpl implements FollowUpService {
     }
 
     @Override
+    @Transactional
     public FollowUpDto updateFollowUp(Long id, FollowUpDto dto) {
         FollowUp existing = followupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("FollowUp not found with ID: " + id));
@@ -177,6 +182,7 @@ public class FollowUpServiceImpl implements FollowUpService {
     }
 
     @Override
+    @Transactional
     public FollowUpDto markDone(Long id, String discussionNotes) {
         FollowUp existing = followupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("FollowUp not found with ID: " + id));
@@ -190,6 +196,7 @@ public class FollowUpServiceImpl implements FollowUpService {
     }
 
     @Override
+    @Transactional
     public FollowUpDto reschedule(Long id, LocalDate newDate, LocalTime newTime) {
         FollowUp existing = followupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("FollowUp not found with ID: " + id));
@@ -206,6 +213,7 @@ public class FollowUpServiceImpl implements FollowUpService {
     }
 
     @Override
+    @Transactional
     public void deleteFollowUp(Long id) {
         if (!followupRepository.existsById(id)) {
             throw new ResourceNotFoundException("FollowUp not found with ID: " + id);

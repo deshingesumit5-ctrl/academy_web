@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axiosInstance from '../../config/axiosInstance';
+import { getCachedData } from '../../config/apiCache';
 import { getCourses } from '../master/course/api/courseApi';
 import type { CourseDto } from '../master/course/api/courseApi';
 import { getLibraryPlans } from '../master/library-plan/api/libraryPlanApi';
@@ -27,7 +28,8 @@ export const RegistrationPage: React.FC = () => {
   const [batches, setBatches] = useState<BatchDto[]>([]);
 
   // Registered Students List State
-  const [students, setStudents] = useState<StudentItem[]>([]);
+  const cachedStudents = getCachedData('/students');
+  const [students, setStudents] = useState<StudentItem[]>(cachedStudents?.data || []);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentItem | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -88,8 +90,8 @@ export const RegistrationPage: React.FC = () => {
     }
   };
 
-  const fetchRegisteredStudents = async () => {
-    setStudentsLoading(true);
+  const fetchRegisteredStudents = async (showLoading = students.length === 0) => {
+    if (showLoading) setStudentsLoading(true);
     try {
       const res = await axiosInstance.get('/students');
       const list: StudentItem[] = res.data.data || [];
@@ -736,9 +738,7 @@ export const RegistrationPage: React.FC = () => {
 
       {activeTab === 'list' && (
         <div className="card">
-          {studentsLoading ? (
-            <div className="empty">Loading registered students...</div>
-          ) : students.length === 0 ? (
+          {students.length === 0 && !studentsLoading ? (
             <div className="empty">
               <i className="ti ti-users"></i>
               <div>No registered students found</div>

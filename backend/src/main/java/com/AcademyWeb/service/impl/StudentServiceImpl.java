@@ -18,7 +18,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class StudentServiceImpl implements StudentService {
 
     @Autowired
@@ -80,6 +83,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @Transactional
     public StudentDto registerStudent(StudentDto dto) {
         Course course = dto.getCourseId() != null ? courseRepository.findById(dto.getCourseId()).orElse(null) : null;
         LibraryPlan libraryPlan = dto.getPlanId() != null ? libraryPlanRepository.findById(dto.getPlanId()).orElse(null)
@@ -118,6 +122,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @Transactional
     public StudentDto updateStudent(Long id, StudentDto dto) {
         Student existing = studentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + id));
@@ -162,6 +167,7 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    @Transactional
     public void deleteStudent(Long id) {
         if (!studentRepository.existsById(id)) {
             throw new ResourceNotFoundException("Student not found with ID: " + id);

@@ -13,13 +13,17 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class BloodGroupServiceImpl implements BloodGroupService {
 
     @Autowired
     private BloodGroupRepository bloodGroupRepository;
 
     @PostConstruct
+    @Transactional
     public void seedDefaults() {
         if (bloodGroupRepository.count() == 0) {
             List<String> defaults = Arrays.asList("A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-");
@@ -47,6 +51,7 @@ public class BloodGroupServiceImpl implements BloodGroupService {
     }
 
     @Override
+    @Transactional
     public BloodGroupDto createBloodGroup(BloodGroupDto dto) {
         BloodGroup entity = BloodGroup.builder()
                 .name(dto.getName())
@@ -57,6 +62,7 @@ public class BloodGroupServiceImpl implements BloodGroupService {
     }
 
     @Override
+    @Transactional
     public BloodGroupDto updateBloodGroup(Long id, BloodGroupDto dto) {
         BloodGroup entity = bloodGroupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Blood Group not found with id: " + id));
@@ -69,6 +75,7 @@ public class BloodGroupServiceImpl implements BloodGroupService {
     }
 
     @Override
+    @Transactional
     public void deleteBloodGroup(Long id) {
         BloodGroup entity = bloodGroupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Blood Group not found with id: " + id));

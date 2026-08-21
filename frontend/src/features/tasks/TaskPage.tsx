@@ -17,11 +17,14 @@ interface Task {
   status: string;
 }
 
+import { getCachedData } from '../../config/apiCache';
+
 export const TaskPage: React.FC = () => {
   const { user, isSuperAdmin, hasPermission } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const cachedTasks = getCachedData('/tasks');
+  const [tasks, setTasks] = useState<Task[]>(cachedTasks?.data || []);
   const [users, setUsers] = useState<UserMasterDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(tasks.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
 
   // Form State
@@ -40,8 +43,8 @@ export const TaskPage: React.FC = () => {
   const [editStatus, setEditStatus] = useState<string>('Pending');
   const [updatingStatus, setUpdatingStatus] = useState<boolean>(false);
 
-  const fetchTasks = async () => {
-    setLoading(true);
+  const fetchTasks = async (showLoading = tasks.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await axiosInstance.get('/tasks');
       setTasks(res.data.data);
@@ -160,9 +163,7 @@ export const TaskPage: React.FC = () => {
       )}
 
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading tasks...</div>
-        ) : displayedTasks.length === 0 ? (
+        {displayedTasks.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-checklist"></i>
             <div>No tasks assigned</div>

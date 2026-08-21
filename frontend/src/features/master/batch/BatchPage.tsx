@@ -5,28 +5,30 @@ import { BatchFormModal } from './components/BatchFormModal';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { ActionButtons } from '../../../components/ActionButtons';
 
+import { getCachedData } from '../../../config/apiCache';
+
 export const BatchPage: React.FC = () => {
-  const [batches, setBatches] = useState<BatchDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedData('/batches');
+  const [batches, setBatches] = useState<BatchDto[]>(cached?.data || []);
+  const [loading, setLoading] = useState(batches.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BatchDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchBatches = async () => {
-    setLoading(true);
+  const fetchBatches = async (showLoading = batches.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await getBatches();
       setBatches(data || []);
     } catch (err) {
       console.error(err);
-      setBatches([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBatches();
+    fetchBatches(batches.length === 0);
   }, []);
 
   const handleOpenAdd = () => {
@@ -45,14 +47,14 @@ export const BatchPage: React.FC = () => {
     } else {
       await createBatch(data);
     }
-    await fetchBatches();
+    await fetchBatches(false);
   };
 
   const handleConfirmDelete = async () => {
     if (deletingId) {
       try {
         await deleteBatch(deletingId);
-        await fetchBatches();
+        await fetchBatches(false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -70,9 +72,7 @@ export const BatchPage: React.FC = () => {
       </div>
 
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading batches...</div>
-        ) : batches.length === 0 ? (
+        {batches.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-users-group"></i>
             <div>No batches added yet</div>

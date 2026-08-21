@@ -5,28 +5,30 @@ import { AcademyFormModal } from './components/AcademyFormModal';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { ActionButtons } from '../../../components/ActionButtons';
 
+import { getCachedData } from '../../../config/apiCache';
+
 export const AcademyPage: React.FC = () => {
-  const [academies, setAcademies] = useState<AcademyDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedData('/academies');
+  const [academies, setAcademies] = useState<AcademyDto[]>(cached?.data || []);
+  const [loading, setLoading] = useState(academies.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<AcademyDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchAcademies = async () => {
-    setLoading(true);
+  const fetchAcademies = async (showLoading = academies.length === 0) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await getAcademies();
       setAcademies(data || []);
     } catch (err) {
       console.error(err);
-      setAcademies([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAcademies();
+    fetchAcademies(academies.length === 0);
   }, []);
 
   const handleOpenAdd = () => {
@@ -45,14 +47,14 @@ export const AcademyPage: React.FC = () => {
     } else {
       await createAcademy(data);
     }
-    await fetchAcademies();
+    await fetchAcademies(false);
   };
 
   const handleConfirmDelete = async () => {
     if (deletingId) {
       try {
         await deleteAcademy(deletingId);
-        await fetchAcademies();
+        await fetchAcademies(false);
       } catch (err) {
         console.error(err);
       } finally {
@@ -70,9 +72,7 @@ export const AcademyPage: React.FC = () => {
       </div>
 
       <div className="card">
-        {loading ? (
-          <div className="empty">Loading academies...</div>
-        ) : academies.length === 0 ? (
+        {academies.length === 0 && !loading ? (
           <div className="empty">
             <i className="ti ti-building"></i>
             <div>No academies added yet</div>
