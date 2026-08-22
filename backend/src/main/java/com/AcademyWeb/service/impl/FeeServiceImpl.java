@@ -5,6 +5,10 @@ import com.AcademyWeb.dto.StudentFeeStructureDto;
 import com.AcademyWeb.entity.FeePayment;
 import com.AcademyWeb.entity.Student;
 import com.AcademyWeb.exception.ResourceNotFoundException;
+import com.AcademyWeb.entity.AcademyFeePlan;
+import com.AcademyWeb.entity.LibraryFeePlan;
+import com.AcademyWeb.repository.AcademyFeePlanRepository;
+import com.AcademyWeb.repository.LibraryFeePlanRepository;
 import com.AcademyWeb.repository.FeePaymentRepository;
 import com.AcademyWeb.repository.StudentRepository;
 import com.AcademyWeb.service.FeeService;
@@ -29,6 +33,12 @@ public class FeeServiceImpl implements FeeService {
 
     @Autowired
     private StudentRepository studentRepository;
+
+    @Autowired
+    private AcademyFeePlanRepository academyFeePlanRepository;
+
+    @Autowired
+    private LibraryFeePlanRepository libraryFeePlanRepository;
 
     private FeePaymentDto mapToDto(FeePayment entity) {
         return FeePaymentDto.builder()
@@ -66,27 +76,87 @@ public class FeeServiceImpl implements FeeService {
         }
 
         return students.stream().map(student -> {
-            BigDecimal courseFee = student.getCourse() != null && student.getCourse().getFees() != null
-                    ? student.getCourse().getFees() : BigDecimal.ZERO;
-            BigDecimal planFee = student.getLibraryPlan() != null && student.getLibraryPlan().getFees() != null
-                    ? student.getLibraryPlan().getFees() : BigDecimal.ZERO;
+            String rawAdmissionType = student.getAdmissionType();
+            String admissionType = "Academy";
+            boolean isAcademy = false;
+            boolean isLibrary = false;
+
+            if (rawAdmissionType != null && !rawAdmissionType.trim().isEmpty()) {
+                String typeNorm = rawAdmissionType.trim().toUpperCase();
+                if (typeNorm.contains("ACADEMY_LIBRARY") || typeNorm.contains("ACADEMY + LIBRARY") || typeNorm.contains("ACADEMY+LIBRARY") || typeNorm.contains("ACADEMY & LIBRARY")) {
+                    admissionType = "Academy + Library";
+                    isAcademy = true;
+                    isLibrary = true;
+                } else if (typeNorm.contains("LIBRARY")) {
+                    admissionType = "Library";
+                    isLibrary = true;
+                } else if (typeNorm.contains("ACADEMY")) {
+                    admissionType = "Academy";
+                    isAcademy = true;
+                } else {
+                    admissionType = rawAdmissionType;
+                    isAcademy = (student.getCourse() != null);
+                    isLibrary = (student.getLibraryPlan() != null);
+                    if (!isAcademy && !isLibrary) {
+                        isAcademy = true;
+                    }
+                }
+            } else {
+                isAcademy = (student.getCourse() != null);
+                isLibrary = (student.getLibraryPlan() != null);
+                if (!isAcademy && !isLibrary) {
+                    isAcademy = true;
+                }
+                admissionType = isAcademy && isLibrary ? "Academy + Library" : (isLibrary ? "Library" : "Academy");
+            }
+
+            BigDecimal courseFee = BigDecimal.ZERO;
+            if (isAcademy) {
+                if (student.getCourse() != null) {
+                    AcademyFeePlan plan = academyFeePlanRepository.findByCourseCourseId(student.getCourse().getCourseId()).orElse(null);
+                    if (plan == null && student.getCourse().getCourseName() != null) {
+                        plan = academyFeePlanRepository.findByPlanNameIgnoreCase(student.getCourse().getCourseName().trim()).orElse(null);
+                    }
+                    if (plan != null && plan.getTotalFee() != null) {
+                        courseFee = plan.getTotalFee();
+                    } else if (student.getCourse().getFees() != null) {
+                        courseFee = student.getCourse().getFees();
+                    }
+                } else if (student.getLibraryPlan() != null) {
+                    AcademyFeePlan plan = academyFeePlanRepository.findByPlanNameIgnoreCase(student.getLibraryPlan().getPlanName().trim()).orElse(null);
+                    if (plan != null && plan.getTotalFee() != null) {
+                        courseFee = plan.getTotalFee();
+                    }
+                }
+            }
+
+            BigDecimal planFee = BigDecimal.ZERO;
+            if (isLibrary) {
+                if (student.getLibraryPlan() != null) {
+                    LibraryFeePlan lPlan = libraryFeePlanRepository.findByLibraryPlanPlanId(student.getLibraryPlan().getPlanId()).orElse(null);
+                    if (lPlan == null && student.getLibraryPlan().getPlanName() != null) {
+                        lPlan = libraryFeePlanRepository.findByPlanNameIgnoreCase(student.getLibraryPlan().getPlanName().trim()).orElse(null);
+                    }
+                    if (lPlan != null && lPlan.getTotalFee() != null) {
+                        planFee = lPlan.getTotalFee();
+                    } else if (student.getLibraryPlan().getFees() != null) {
+                        planFee = student.getLibraryPlan().getFees();
+                    }
+                }
+                if (planFee.compareTo(BigDecimal.ZERO) == 0 && student.getCourse() != null && student.getCourse().getCourseName() != null) {
+                    LibraryFeePlan lPlan = libraryFeePlanRepository.findByPlanNameIgnoreCase(student.getCourse().getCourseName().trim()).orElse(null);
+                    if (lPlan != null && lPlan.getTotalFee() != null) {
+                        planFee = lPlan.getTotalFee();
+                    }
+                }
+            }
+
             BigDecimal totalFee = courseFee.add(planFee);
             
             BigDecimal paidAmount = paidMap.getOrDefault(student.getStudentId(), BigDecimal.ZERO);
             BigDecimal remainingAmount = totalFee.subtract(paidAmount);
             if (remainingAmount.compareTo(BigDecimal.ZERO) < 0) {
                 remainingAmount = BigDecimal.ZERO;
-            }
-
-            String admissionType = student.getAdmissionType();
-            if ("ACADEMY_LIBRARY".equalsIgnoreCase(admissionType) || "Academy + Library".equalsIgnoreCase(admissionType)) {
-                admissionType = "Academy + Library";
-            } else if ("ACADEMY".equalsIgnoreCase(admissionType)) {
-                admissionType = "Academy";
-            } else if ("LIBRARY".equalsIgnoreCase(admissionType)) {
-                admissionType = "Library";
-            } else if (admissionType == null) {
-                admissionType = "Academy";
             }
 
             String courseOrPlanName = "-";

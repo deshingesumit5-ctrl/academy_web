@@ -14,8 +14,11 @@ import { getCachedData } from '../../../config/apiCache';
 
 export const FeeStructurePage: React.FC = () => {
   const cached = getCachedData('/fee-structures');
-  const [feeStructures, setFeeStructures] = useState<FeeStructureDto[]>(cached?.data || []);
-  const [loading, setLoading] = useState(feeStructures.length === 0);
+  const initialList = Array.isArray(cached?.data)
+    ? cached.data
+    : (cached?.data?.academyFeePlans && Array.isArray(cached?.data?.academyFeePlans) ? cached.data.academyFeePlans : []);
+  const [feeStructures, setFeeStructures] = useState<FeeStructureDto[]>(initialList);
+  const [loading, setLoading] = useState(initialList.length === 0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FeeStructureDto | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -24,9 +27,11 @@ export const FeeStructurePage: React.FC = () => {
     if (showLoading) setLoading(true);
     try {
       const data = await getFeeStructures();
-      setFeeStructures(data || []);
+      const list = Array.isArray(data) ? data : [];
+      setFeeStructures(list);
     } catch (err) {
       console.error(err);
+      setFeeStructures([]);
     } finally {
       setLoading(false);
     }
@@ -77,7 +82,7 @@ export const FeeStructurePage: React.FC = () => {
       </div>
 
       <div className="card">
-        {feeStructures.length === 0 && !loading ? (
+        {(!Array.isArray(feeStructures) || feeStructures.length === 0) && !loading ? (
           <div className="empty">
             <i className="ti ti-cash"></i>
             <div>No fee structures added yet</div>
@@ -94,7 +99,7 @@ export const FeeStructurePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {feeStructures.map((item, index) => (
+                {(Array.isArray(feeStructures) ? feeStructures : []).map((item, index) => (
                   <tr key={item.academyFeePlanId || index}>
                     <td>{index + 1}</td>
                     <td>{item.planName}</td>

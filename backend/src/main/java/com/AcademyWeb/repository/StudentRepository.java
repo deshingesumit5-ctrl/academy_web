@@ -21,8 +21,14 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     long countByAdmissionDateBetween(LocalDate start, LocalDate end);
 
-    @Query("SELECT s.studentId, COALESCE(c.fees, 0) + COALESCE(lp.fees, 0) " +
-            "FROM Student s LEFT JOIN s.course c LEFT JOIN s.libraryPlan lp " +
-            "WHERE s.status = 'ACTIVE'")
+    @Query("SELECT s.studentId, " +
+           "CASE " +
+           "  WHEN (UPPER(s.admissionType) LIKE '%ACADEMY_LIBRARY%' OR UPPER(s.admissionType) LIKE '%ACADEMY + LIBRARY%' OR UPPER(s.admissionType) LIKE '%ACADEMY+LIBRARY%' OR UPPER(s.admissionType) LIKE '%ACADEMY & LIBRARY%') THEN COALESCE(c.fees, 0) + COALESCE(lp.fees, 0) " +
+           "  WHEN (UPPER(s.admissionType) LIKE '%LIBRARY%') THEN COALESCE(lp.fees, 0) " +
+           "  WHEN (UPPER(s.admissionType) LIKE '%ACADEMY%') THEN COALESCE(c.fees, 0) " +
+           "  ELSE COALESCE(c.fees, 0) + COALESCE(lp.fees, 0) " +
+           "END " +
+           "FROM Student s LEFT JOIN s.course c LEFT JOIN s.libraryPlan lp " +
+           "WHERE s.status = 'ACTIVE'")
     List<Object[]> findActiveStudentTotalFees();
 }

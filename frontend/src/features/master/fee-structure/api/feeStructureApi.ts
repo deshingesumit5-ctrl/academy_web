@@ -10,7 +10,10 @@ export interface FeeStructureDto {
 
 export const getFeeStructures = async (): Promise<FeeStructureDto[]> => {
   const res = await axiosInstance.get('/fee-structures');
-  return res.data.data?.academyFeePlans || res.data.data || [];
+  const data = res.data.data;
+  if (Array.isArray(data)) return data;
+  if (data?.academyFeePlans && Array.isArray(data.academyFeePlans)) return data.academyFeePlans;
+  return [];
 };
 
 export const createFeeStructure = async (data: FeeStructureDto): Promise<FeeStructureDto> => {

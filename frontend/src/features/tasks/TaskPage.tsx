@@ -41,6 +41,7 @@ export const TaskPage: React.FC = () => {
   // Edit Status State
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editStatus, setEditStatus] = useState<string>('Pending');
+  const [editDescription, setEditDescription] = useState<string>('');
   const [updatingStatus, setUpdatingStatus] = useState<boolean>(false);
 
   const fetchTasks = async (showLoading = tasks.length === 0) => {
@@ -77,9 +78,9 @@ export const TaskPage: React.FC = () => {
       const userTasks = isSuperAdmin()
         ? tasks
         : tasks.filter((t) => {
-            const assigned = (t.assignedTo || '').trim().toLowerCase();
-            return (userFull && assigned === userFull) || (userEmail && assigned === userEmail);
-          });
+          const assigned = (t.assignedTo || '').trim().toLowerCase();
+          return (userFull && assigned === userFull) || (userEmail && assigned === userEmail);
+        });
 
       const key = `seen_tasks_${user.username || 'user'}`;
       const existing: number[] = JSON.parse(localStorage.getItem(key) || '[]');
@@ -128,6 +129,7 @@ export const TaskPage: React.FC = () => {
       await axiosInstance.put(`/tasks/${editingTask.taskId}`, {
         ...editingTask,
         status: editStatus,
+        description: editDescription,
       });
       setEditingTask(null);
       fetchTasks();
@@ -145,12 +147,12 @@ export const TaskPage: React.FC = () => {
   const displayedTasks = (isSuperAdmin() || isAdmin)
     ? tasks
     : tasks.filter((t) => {
-        if (!user) return false;
-        const assigned = (t.assignedTo || '').trim().toLowerCase();
-        const userFull = (user.fullName || '').trim().toLowerCase();
-        const userEmail = (user.username || '').trim().toLowerCase();
-        return (userFull && assigned === userFull) || (userEmail && assigned === userEmail);
-      });
+      if (!user) return false;
+      const assigned = (t.assignedTo || '').trim().toLowerCase();
+      const userFull = (user.fullName || '').trim().toLowerCase();
+      const userEmail = (user.username || '').trim().toLowerCase();
+      return (userFull && assigned === userFull) || (userEmail && assigned === userEmail);
+    });
 
   return (
     <div>
@@ -193,9 +195,8 @@ export const TaskPage: React.FC = () => {
                     <td>{t.dueDate || 'Today'}</td>
                     <td>
                       <span
-                        className={`badge ${
-                          t.priority === 'High' ? 'badge-red' : t.priority === 'Medium' ? 'badge-amber' : 'badge-gray'
-                        }`}
+                        className={`badge ${t.priority === 'High' ? 'badge-red' : t.priority === 'Medium' ? 'badge-amber' : 'badge-gray'
+                          }`}
                       >
                         {t.priority}
                       </span>
@@ -221,6 +222,7 @@ export const TaskPage: React.FC = () => {
                           onClick={() => {
                             setEditingTask(t);
                             setEditStatus(t.status || 'Pending');
+                            setEditDescription(t.description || '');
                           }}
                         >
                           <i className="ti ti-pencil" style={{ fontSize: '14px' }}></i>
@@ -335,6 +337,14 @@ export const TaskPage: React.FC = () => {
                 <option value="Done">Done</option>
                 <option value="Scheduled">Scheduled</option>
               </select>
+            </div>
+            <div className="form-field">
+              <label>Description</label>
+              <textarea
+                placeholder="Task details"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+              />
             </div>
             <div className="modal-footer" style={{ padding: 0, marginTop: '10px' }}>
               <button type="button" className="btn" onClick={() => setEditingTask(null)}>

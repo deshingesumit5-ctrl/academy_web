@@ -124,6 +124,7 @@ export const DashboardPage: React.FC = () => {
 
           {canViewInquiry && (
             <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => navigate('/inquiry')}>
+              <div className="stat-top"><i className="ti ti-phone-call"></i>Converted Inquiries</div>
               <div className="stat-value" style={{ color: 'var(--accent)' }}>{loading ? '...' : (stats?.convertedInquiriesCount ?? 0)}</div>
               <div className="stat-delta" style={{ color: '#2b6cb0' }}>
                 {stats?.convertedInquiriesCount ?? 0} of {stats?.totalInquiriesCount ?? 0} converted
