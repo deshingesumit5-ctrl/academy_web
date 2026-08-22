@@ -81,6 +81,88 @@ const MainLayout: React.FC = () => {
 
   React.useEffect(() => {
     prefetchAllData();
+
+    // Automatically inspect all rendered tables and inject data-label & data-card-number for mobile cards
+    const updateTableLabels = () => {
+      const tables = document.querySelectorAll('table');
+      tables.forEach((table) => {
+        const thEls = table.querySelectorAll('thead th');
+        if (thEls.length === 0) return;
+        const headers = Array.from(thEls).map((th) => th.textContent?.trim() || '');
+
+        const isIdColumnHeader = (header: string) => {
+          const norm = header.toLowerCase().replace(/[^a-z0-9#]/g, '');
+          return norm === 'id' || norm === '#' || norm === 'srno' || norm === 'sno' || norm === 'slno' || norm === 'serialno' || norm === 'no';
+        };
+
+        const idColumnIdx = headers.findIndex(isIdColumnHeader);
+
+        // Detect pagination offset if present in surrounding page container
+        let pageOffset = 0;
+        const container = table.closest('.card, .page-content, main, body') || table.parentElement;
+        if (container) {
+          const text = container.textContent || '';
+          const showingMatch = text.match(/showing\s+(\d+)\s*(?:to|-)\s*\d+/i);
+          if (showingMatch) {
+            const startNum = parseInt(showingMatch[1], 10);
+            if (!isNaN(startNum) && startNum > 0) {
+              pageOffset = startNum - 1;
+            }
+          }
+        }
+
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach((row, rowIndex) => {
+          const cells = row.querySelectorAll('td');
+
+          // Inject data-label attributes for mobile card stacked fields
+          cells.forEach((cell, idx) => {
+            if (headers[idx]) {
+              const label = headers[idx];
+              if (cell.getAttribute('data-label') !== label) {
+                cell.setAttribute('data-label', label);
+              }
+            }
+          });
+
+          // Determine mobile card serial number
+          let cardNumber = '';
+          if (idColumnIdx !== -1 && cells[idColumnIdx]) {
+            const idCell = cells[idColumnIdx];
+            if (idCell.getAttribute('data-is-id-col') !== 'true') {
+              idCell.setAttribute('data-is-id-col', 'true');
+            }
+            const val = idCell.textContent?.trim();
+            if (val && val !== '-' && val !== '—') {
+              cardNumber = val;
+            }
+          }
+
+          if (!cardNumber) {
+            cardNumber = String(pageOffset + rowIndex + 1);
+          }
+
+          if (row.getAttribute('data-card-number') !== cardNumber) {
+            row.setAttribute('data-card-number', cardNumber);
+          }
+        });
+      });
+    };
+
+    updateTableLabels();
+
+    const observer = new MutationObserver(() => {
+      updateTableLabels();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   let currentTitle = pageTitles[location.pathname];

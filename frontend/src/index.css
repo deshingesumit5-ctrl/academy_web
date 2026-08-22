@@ -1631,3 +1631,153 @@ textarea.input-error:focus {
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
 }
 }
+
+/* ==========================================================================
+   Mobile Responsive Data Tables (Global Stacked Card Layout - Width <= 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Action button in section title (e.g. "+ Add Employee") becomes full width */
+  .section-title {
+    width: 100%;
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: stretch;
+  }
+
+  .section-title .btn,
+  .section-title .btn-primary {
+    width: 100%;
+    justify-content: center;
+    padding: 11px 16px;
+    font-size: 14px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+
+  /* Reset table container card wrapper on mobile for seamless card stack */
+  .card > .table-responsive {
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .card:has(.table-responsive) {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .table-responsive {
+    overflow-x: visible !important;
+    width: 100% !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  /* Transform table layout into stacked block elements */
+  table {
+    display: block !important;
+    width: 100% !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  /* Hide table header row on mobile */
+  table thead {
+    display: none !important;
+  }
+
+  /* Table body container for cards */
+  table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  /* Each table row becomes an independent stacked card */
+  table tbody tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    padding: 14px 16px !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+    gap: 10px !important;
+    position: relative !important;
+  }
+
+  /* Render subtle serial number badge at top corner of mobile card */
+  table tbody tr[data-card-number]::before {
+    content: attr(data-card-number);
+    position: absolute !important;
+    top: 12px !important;
+    right: 14px !important;
+    background: #EFF6FF !important;
+    color: #1D4ED8 !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    padding: 2px 8px !important;
+    border-radius: 12px !important;
+    border: 1px solid #BFDBFE !important;
+    letter-spacing: 0.02em !important;
+    pointer-events: none !important;
+    z-index: 2 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  }
+
+  /* Prevent text collision between top-right card badge and first visible field label */
+  table tbody tr[data-card-number] td:not([data-is-id-col="true"]):first-of-type {
+    padding-right: 55px !important;
+  }
+
+  /* Hide separate desktop ID column cell on mobile cards to prevent duplicate ID field block */
+  table tbody td[data-is-id-col="true"] {
+    display: none !important;
+  }
+
+  table tbody tr:hover td {
+    background: transparent !important;
+  }
+
+  /* Each cell becomes a stacked field with bold label + value */
+  table tbody td {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 5px 0 !important;
+    border: none !important;
+    border-bottom: 1px solid #F1F5F9 !important;
+    text-align: left !important;
+    width: 100% !important;
+    word-break: break-word !important;
+    color: #2D3748 !important;
+    font-size: 13.5px !important;
+  }
+
+  table tbody td:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+    margin-top: 4px !important;
+  }
+
+  /* Render bold field label above value using data-label attribute */
+  table tbody td[data-label]::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: 11.5px;
+    color: var(--slate-light);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 3px;
+    display: block;
+  }
+
+  /* Action buttons row inside mobile card */
+  table tbody td .action-buttons {
+    width: 100% !important;
+    justify-content: flex-end !important;
+    margin-top: 2px !important;
+  }
+}
