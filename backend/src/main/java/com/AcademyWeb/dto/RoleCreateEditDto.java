@@ -20,8 +20,6 @@ public class RoleCreateEditDto {
 
     private String status; // Active / Inactive
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
     private String email;
 
     private String password;

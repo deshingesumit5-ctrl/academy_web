@@ -2,6 +2,7 @@ package com.AcademyWeb.service.impl;
 
 import com.AcademyWeb.dto.EmployeeDto;
 import com.AcademyWeb.entity.Employee;
+import com.AcademyWeb.exception.BadRequestException;
 import com.AcademyWeb.exception.ResourceNotFoundException;
 import com.AcademyWeb.repository.EmployeeRepository;
 import com.AcademyWeb.service.EmployeeService;
@@ -37,6 +38,9 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Transactional
     public EmployeeDto createEmployee(EmployeeDto dto) {
+        if (dto.getEmailId() == null || dto.getEmailId().trim().isEmpty()) {
+            throw new BadRequestException("Email ID is mandatory for employee");
+        }
         Employee entity = mapToEntity(dto);
         Employee saved = employeeRepository.save(entity);
         return mapToDto(saved);
@@ -45,6 +49,9 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Transactional
     public EmployeeDto updateEmployee(Long id, EmployeeDto dto) {
+        if (dto.getEmailId() == null || dto.getEmailId().trim().isEmpty()) {
+            throw new BadRequestException("Email ID is mandatory for employee");
+        }
         Employee entity = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
 

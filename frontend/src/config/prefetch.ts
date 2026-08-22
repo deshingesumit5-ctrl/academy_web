@@ -19,6 +19,7 @@ export const prefetchAllData = (): void => {
     '/inquiries',
     '/tasks',
     '/follow-ups',
+    '/blood-groups',
   ];
 
   // Fire requests asynchronously in parallel without blocking main thread

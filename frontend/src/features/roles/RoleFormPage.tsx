@@ -37,9 +37,6 @@ export const RoleFormPage: React.FC = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState('Active');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Selected permissions map: moduleName -> array of checked actions
@@ -59,10 +56,6 @@ export const RoleFormPage: React.FC = () => {
             setName(role.name || '');
             setDescription(role.description || '');
             setStatus(role.status || 'Active');
-            setEmail(role.email || role.username || '');
-            const initialPassword = role.password || '••••••••';
-            setPassword(initialPassword);
-            setConfirmPassword(initialPassword);
             
             if (role.permissions) {
               try {
@@ -84,19 +77,11 @@ export const RoleFormPage: React.FC = () => {
       setName('');
       setDescription('');
       setStatus('Active');
-      setEmail('');
-      setPassword('');
-      setConfirmPassword('');
       setPermissions({});
       setError('');
     }
     setFieldErrors({});
   }, [id, isEdit]);
-
-  const handlePasswordChange = (val: string) => {
-    setPassword(val);
-    setConfirmPassword(val);
-  };
 
   // Check if all permissions across all modules are selected
   const isAdminAllChecked = MODULE_CONFIGS.every((mod) => {
@@ -160,52 +145,14 @@ export const RoleFormPage: React.FC = () => {
     const nameErr = validateRequired(name);
     if (nameErr) errors.name = nameErr;
 
-    const emailErr = validateRequired(email);
-    if (emailErr) errors.email = emailErr;
-
-    if (!isEdit) {
-      const passErr = validateRequired(password);
-      if (passErr) errors.password = passErr;
-    }
-
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      setError('Please enter a valid email address');
-      return;
-    }
-
-    if (!isEdit) {
-      if (password.trim().length < 8) {
-        setError('Password is required and must be at least 8 characters long');
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError('Password and Confirm Password do not match');
-        return;
-      }
-    } else {
-      if (password && password !== '••••••••' && password.trim().length < 8) {
-        setError('New password must be at least 8 characters long');
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError('Password and Confirm Password do not match');
-        return;
-      }
-    }
-
     setSubmitting(true);
-    const isNewPasswordEntered = password && password !== '••••••••';
     const payload = {
       name: name.trim(),
       description: description.trim(),
       status,
-      email: email.trim(),
-      password: isNewPasswordEntered ? password.trim() : undefined,
-      confirmPassword: isNewPasswordEntered ? confirmPassword.trim() : undefined,
       permissions: JSON.stringify(permissions),
     };
 
@@ -242,7 +189,7 @@ export const RoleFormPage: React.FC = () => {
         {/* Form Card 1: Role & Login Credentials */}
         <div className="card" style={{ background: '#fff', borderRadius: '12px', padding: '24px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', fontWeight: 600, color: '#1E293B', borderBottom: '1px solid #F1F5F9', paddingBottom: '12px' }}>
-            Role & Account Details
+            Role Details
           </h3>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
@@ -288,58 +235,6 @@ export const RoleFormPage: React.FC = () => {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Brief summary of role responsibilities..."
                 style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', fontFamily: 'inherit' }}
-              />
-            </div>
-
-            <div className="form-field">
-              <label style={{ display: 'block', fontWeight: 500, fontSize: '14px', marginBottom: '6px', color: '#334155' }}>
-                Login Email <span style={{ color: '#EF4444' }}>*</span>
-              </label>
-              <input
-                type="email"
-                className={fieldErrors.email ? 'input-error' : ''}
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: '' }));
-                }}
-                placeholder="user@academy.com"
-                autoComplete="new-password"
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
-              />
-              <FieldError error={fieldErrors.email} />
-            </div>
-
-            <div className="form-field">
-              <label style={{ display: 'block', fontWeight: 500, fontSize: '14px', marginBottom: '6px', color: '#334155' }}>
-                {isEdit ? 'Password (leave blank to keep current)' : 'Password *'}
-              </label>
-              <input
-                type="password"
-                className={fieldErrors.password ? 'input-error' : ''}
-                value={password}
-                onChange={(e) => {
-                  handlePasswordChange(e.target.value);
-                  if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: '' }));
-                }}
-                placeholder="••••••••"
-                autoComplete="new-password"
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
-              />
-              <FieldError error={fieldErrors.password} />
-            </div>
-
-            <div className="form-field">
-              <label style={{ display: 'block', fontWeight: 500, fontSize: '14px', marginBottom: '6px', color: '#334155' }}>
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="new-password"
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
               />
             </div>
           </div>

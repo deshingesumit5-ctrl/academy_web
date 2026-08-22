@@ -292,7 +292,7 @@ export const FeeManagementPage: React.FC = () => {
             {/* Registration Type */}
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4a5568', marginBottom: '4px' }}>Registration Type</label>
-              <select value={filterRegType} onChange={(e) => setFilterRegType(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px', background: '#fff' }}>
+              <select value={filterRegType} onChange={(e) => setFilterRegType(e.target.value)}>
                 <option value="All">All</option>
                 <option value="Academy">Academy</option>
                 <option value="Library">Library</option>
@@ -303,7 +303,7 @@ export const FeeManagementPage: React.FC = () => {
             {/* Academy / Library */}
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4a5568', marginBottom: '4px' }}>Academy / Library</label>
-              <select value={filterAcademyLibrary} onChange={(e) => setFilterAcademyLibrary(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px', background: '#fff' }}>
+              <select value={filterAcademyLibrary} onChange={(e) => setFilterAcademyLibrary(e.target.value)}>
                 <option value="All">All</option>
                 <option value="Academy">Academy</option>
                 <option value="Library">Library</option>

@@ -100,14 +100,8 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
       const selectedId = Number(selectedVal);
       setRoleId(selectedId);
       const foundRole = rolesList.find((r) => r.roleId === selectedId);
-      if (foundRole) {
-        if (foundRole.email && foundRole.email.trim() !== '') {
-          setEmail(foundRole.email);
-          setPassword('••••••••');
-        }
-        if (foundRole.description && !description) {
-          setDescription(foundRole.description);
-        }
+      if (foundRole && foundRole.description && !description) {
+        setDescription(foundRole.description);
       }
     }
     if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: '' }));
@@ -122,7 +116,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
     setEmployeeId(empIdNum);
 
     const foundEmp = employeesList.find((e) => e.employeeId === empIdNum);
-    if (foundEmp && foundEmp.emailId && (!email || roleId === 'NEW' || roleId === '')) {
+    if (foundEmp && foundEmp.emailId && !initialData) {
       setEmail(foundEmp.emailId);
     }
   };
@@ -170,7 +164,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
       title={initialData ? 'Edit User' : 'Add User'}
       onClose={onClose}
     >
-      <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <form noValidate onSubmit={handleSubmit} autoComplete="off" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         {/* Select Employee */}
         <div className="form-field">
           <label>Select Employee</label>
@@ -220,6 +214,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           <label>Email ID <span className="required-asterisk">*</span></label>
           <input
             type="email"
+            autoComplete="new-password"
             className={fieldErrors.email ? 'input-error' : ''}
             placeholder="e.g. user@academy.com"
             value={email}
@@ -236,6 +231,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           <label>Password {!initialData && <span className="required-asterisk">*</span>}</label>
           <input
             type="password"
+            autoComplete="new-password"
             className={fieldErrors.password ? 'input-error' : ''}
             placeholder={initialData ? 'Leave blank to keep existing password' : 'Enter login password'}
             value={password}

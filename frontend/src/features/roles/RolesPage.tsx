@@ -49,7 +49,7 @@ export const RolesPage: React.FC = () => {
       alert('Super Admin role cannot be deleted');
       return;
     }
-    if (!window.confirm(`Are you sure you want to delete role "${roleName}"? This will also remove the linked user login account.`)) {
+    if (!window.confirm(`Are you sure you want to delete role "${roleName}"?`)) {
       return;
     }
 
@@ -97,7 +97,6 @@ export const RolesPage: React.FC = () => {
                 <tr>
                   <th>Role Name</th>
                   <th>Description</th>
-                  <th>Linked Login Email</th>
                   <th>Status</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
@@ -116,7 +115,6 @@ export const RolesPage: React.FC = () => {
                         )}
                       </td>
                       <td>{role.description || '-'}</td>
-                      <td>{role.email || role.username || '-'}</td>
                       <td>
                         <span className={`badge ${role.status === 'Active' ? 'badge-green' : 'badge-gray'}`}>
                           {role.status}

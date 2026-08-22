@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '../../../../components/Modal';
 import type { EmployeeDto } from '../api/employeeApi';
+import { getBloodGroups, type BloodGroupDto } from '../api/bloodGroupApi';
 import {
   MOBILE_PLACEHOLDER,
   handleMobileChange,
@@ -36,16 +37,7 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
   const [shift, setShift] = useState('General');
   const [status, setStatus] = useState('Active');
   const [employeePhoto, setEmployeePhoto] = useState<string>('');
-  const [bloodGroupsList, setBloodGroupsList] = useState<Array<{ bloodGroupId?: string | number; name: string }>>([
-    { name: 'A+' },
-    { name: 'A-' },
-    { name: 'B+' },
-    { name: 'B-' },
-    { name: 'O+' },
-    { name: 'O-' },
-    { name: 'AB+' },
-    { name: 'AB-' },
-  ]);
+  const [bloodGroupsList, setBloodGroupsList] = useState<Array<BloodGroupDto>>([]);
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -54,7 +46,9 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setBloodGroupsList((groups) => groups);
+      getBloodGroups()
+        .then((groups) => setBloodGroupsList(groups))
+        .catch((err) => console.error('Failed to load blood groups from DB', err));
     }
   }, [isOpen]);
 
@@ -151,6 +145,13 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
 
     const mobErr = validateMobile(mobileNumber, true);
     if (mobErr) errors.mobileNumber = mobErr;
+
+    const emailErr = validateRequired(emailId);
+    if (emailErr) {
+      errors.emailId = emailErr;
+    } else if (!/\S+@\S+\.\S+/.test(emailId)) {
+      errors.emailId = 'Enter a valid email address';
+    }
 
     const panErr = validateRequired(panNumber);
     if (panErr) {
@@ -263,13 +264,18 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
 
           {/* Email ID */}
           <div className="form-field">
-            <label>Email ID</label>
+            <label>Email ID <span className="required-asterisk">*</span></label>
             <input
               type="email"
+              className={fieldErrors.emailId ? 'input-error' : ''}
               placeholder="e.g. employee@company.com"
               value={emailId}
-              onChange={(e) => setEmailId(e.target.value)}
+              onChange={(e) => {
+                setEmailId(e.target.value);
+                if (fieldErrors.emailId) setFieldErrors((prev) => ({ ...prev, emailId: '' }));
+              }}
             />
+            <FieldError error={fieldErrors.emailId} />
           </div>
 
           {/* Aadhaar Number */}
@@ -309,18 +315,6 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
                   {bg.name}
                 </option>
               ))}
-              {bloodGroupsList.length === 0 && (
-                <>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                </>
-              )}
             </select>
           </div>
 
