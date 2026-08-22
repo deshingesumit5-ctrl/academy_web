@@ -51,16 +51,22 @@ export const DashboardPage: React.FC = () => {
   const userEmail = (user?.username || '').trim().toLowerCase();
   const userRole = (user?.role || '').trim().toLowerCase();
 
-  const userTasks = (stats?.todaysTasks || []).filter((t: any) => {
-    if (!user) return false;
-    const assigned = (t.assignedTo || '').trim().toLowerCase();
-    if (!assigned) return false;
-    return (
-      (userFull && assigned === userFull) ||
-      (userEmail && assigned === userEmail) ||
-      (userRole && assigned === userRole)
-    );
-  });
+  const roleUpper = (user?.role || '').toUpperCase();
+  const isEmployeeOrUser = roleUpper === 'USER' || roleUpper.includes('EMPLOYEE');
+  const isAdmin = (isSuperAdmin() || roleUpper.includes('ADMIN') || hasPermission('Tasks', 'Create')) && !isEmployeeOrUser;
+
+  const userTasks = (isSuperAdmin() || isAdmin)
+    ? (stats?.todaysTasks || [])
+    : (stats?.todaysTasks || []).filter((t: any) => {
+        if (!user) return false;
+        const assigned = (t.assignedTo || '').trim().toLowerCase();
+        if (!assigned) return false;
+        return (
+          (userFull && assigned === userFull) ||
+          (userEmail && assigned === userEmail) ||
+          (userRole && assigned === userRole)
+        );
+      });
 
   const fetchStats = async () => {
     setLoading(true);

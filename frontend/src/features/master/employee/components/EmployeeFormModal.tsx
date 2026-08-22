@@ -149,7 +149,7 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
     const emailErr = validateRequired(emailId);
     if (emailErr) {
       errors.emailId = emailErr;
-    } else if (!/\S+@\S+\.\S+/.test(emailId)) {
+    } else if (!/\S+@\S+\.\S+/.test(emailId.trim())) {
       errors.emailId = 'Enter a valid email address';
     }
 
@@ -176,7 +176,7 @@ export const EmployeeFormModal: React.FC<EmployeeFormModalProps> = ({
         gender,
         dob,
         mobileNumber,
-        emailId,
+        emailId: emailId.trim(),
         aadhaarNumber,
         panNumber,
         bloodGroup,

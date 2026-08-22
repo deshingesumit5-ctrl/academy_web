@@ -32,7 +32,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       const userFull = (user.fullName || '').trim().toLowerCase();
       const userEmail = (user.username || '').trim().toLowerCase();
 
-      const myTasks = isSuperAdmin()
+      const roleUpper = (user.role || '').toUpperCase();
+      const isEmployeeOrUser = roleUpper === 'USER' || roleUpper.includes('EMPLOYEE');
+      const isAdminUser = (isSuperAdmin() || roleUpper.includes('ADMIN') || hasPermission('Tasks', 'Create')) && !isEmployeeOrUser;
+
+      const myTasks = (isSuperAdmin() || isAdminUser)
         ? allTasks
         : allTasks.filter((t) => {
             const assigned = (t.assignedTo || '').trim().toLowerCase();

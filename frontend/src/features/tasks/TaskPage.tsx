@@ -142,7 +142,7 @@ export const TaskPage: React.FC = () => {
   const isEmployeeOrUser = roleUpper === 'USER' || roleUpper.includes('EMPLOYEE');
   const isAdmin = (isSuperAdmin() || roleUpper.includes('ADMIN') || hasPermission('Tasks', 'Create')) && !isEmployeeOrUser;
 
-  const displayedTasks = isSuperAdmin()
+  const displayedTasks = (isSuperAdmin() || isAdmin)
     ? tasks
     : tasks.filter((t) => {
         if (!user) return false;
