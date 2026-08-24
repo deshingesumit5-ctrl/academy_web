@@ -26,6 +26,11 @@ public class MarksheetController {
         return ResponseEntity.ok(ApiResponse.success("Marksheet record saved successfully", marksheetService.saveMarksheet(dto)));
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<ApiResponse<List<MarksheetDto>>> saveBulkMarksheets(@RequestBody List<MarksheetDto> dtos) {
+        return ResponseEntity.ok(ApiResponse.success("Bulk marksheets uploaded successfully", marksheetService.saveBulkMarksheets(dtos)));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<MarksheetDto>> updateMarksheet(@PathVariable Long id, @RequestBody MarksheetDto dto) {
         dto.setMarksheetId(id);

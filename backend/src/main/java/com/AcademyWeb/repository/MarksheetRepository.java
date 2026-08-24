@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface MarksheetRepository extends JpaRepository<Marksheet, Long> {
     List<Marksheet> findByStudentStudentId(Long studentId);
+    boolean existsByStudentStudentIdAndExamExamId(Long studentId, Long examId);
 }

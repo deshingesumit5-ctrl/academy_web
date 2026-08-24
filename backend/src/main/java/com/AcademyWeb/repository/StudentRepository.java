@@ -31,4 +31,12 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
            "FROM Student s LEFT JOIN s.course c LEFT JOIN s.libraryPlan lp " +
            "WHERE s.status = 'ACTIVE'")
     List<Object[]> findActiveStudentTotalFees();
+
+    boolean existsByRollNumberAndBatchBatchId(String rollNumber, Long batchId);
+    boolean existsByRollNumberAndCourseCourseId(String rollNumber, Long courseId);
+    boolean existsByRollNumberAndBatchBatchIdAndStudentIdNot(String rollNumber, Long batchId, Long studentId);
+    boolean existsByRollNumberAndCourseCourseIdAndStudentIdNot(String rollNumber, Long courseId, Long studentId);
+
+    boolean existsByRollNumberAndStatusNot(String rollNumber, String status);
+    boolean existsByRollNumberAndStatusNotAndStudentIdNot(String rollNumber, String status, Long studentId);
 }

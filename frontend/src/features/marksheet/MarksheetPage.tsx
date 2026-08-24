@@ -7,6 +7,7 @@ import { getBatches } from '../master/batch/api/batchApi';
 import type { BatchDto } from '../master/batch/api/batchApi';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ActionButtons } from '../../components/ActionButtons';
+import { BulkMarksheetModal } from './components/BulkMarksheetModal';
 
 interface MarksheetRecord {
   marksheetId?: number;
@@ -42,6 +43,7 @@ export const MarksheetPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
 
   useEffect(() => {
     fetchData(marksheets.length === 0);
@@ -165,6 +167,19 @@ export const MarksheetPage: React.FC = () => {
 
   return (
     <div>
+      <div className="section-title" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16, gap: 10 }}>
+        <button
+          className="btn btn-outline"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#F0FDF4', color: '#166534', borderColor: '#BBF7D0' }}
+          onClick={() => setBulkModalOpen(true)}
+        >
+          <i className="ti ti-file-spreadsheet" style={{ fontSize: '18px', color: '#16A34A' }}></i>
+          Upload Excel / Bulk Upload
+        </button>
+        <button className="btn btn-primary" onClick={() => setBulkModalOpen(true)}>
+          <i className="ti ti-upload" style={{ marginRight: 6 }}></i>Bulk Marksheet Upload
+        </button>
+      </div>
 
       {/* Form Card */}
       <div className="card card-pad" style={{ marginBottom: '24px' }}>
@@ -398,6 +413,16 @@ export const MarksheetPage: React.FC = () => {
         message="Are you sure you want to delete this marksheet record? This action cannot be undone."
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeletingId(null)}
+      />
+
+      <BulkMarksheetModal
+        isOpen={bulkModalOpen}
+        onClose={() => setBulkModalOpen(false)}
+        exams={exams}
+        batches={batches}
+        students={students}
+        existingMarksheets={marksheets}
+        onSuccess={() => fetchMarksheets()}
       />
     </div>
   );

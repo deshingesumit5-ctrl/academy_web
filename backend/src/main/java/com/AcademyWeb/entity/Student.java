@@ -91,6 +91,67 @@ public class Student {
     @Column(name = "status", length = 30) // ACTIVE, INACTIVE, COMPLETED
     private String status = "ACTIVE";
 
+    // New Fields
+    @Column(name = "roll_number", length = 50)
+    private String rollNumber;
+
+    @Column(name = "religion", length = 100)
+    private String religion;
+
+    @Column(name = "caste", length = 100)
+    private String caste;
+
+    @Column(name = "kit_size", length = 50)
+    private String kitSize;
+
+    @Column(name = "has_sports_certificate", length = 10)
+    private String hasSportsCertificate; // Yes / No
+
+    @Column(name = "sports_certificate_details", length = 300)
+    private String sportsCertificateDetails;
+
+    @Column(name = "sports_certificate_doc", columnDefinition = "VARCHAR(MAX)")
+    private String sportsCertificateDoc;
+
+    @Column(name = "has_ncc_certificate", length = 10)
+    private String hasNccCertificate; // Yes / No
+
+    @Column(name = "ncc_certificate_details", length = 300)
+    private String nccCertificateDetails;
+
+    @Column(name = "ncc_certificate_doc", columnDefinition = "VARCHAR(MAX)")
+    private String nccCertificateDoc;
+
+    // Previous Year Details
+    @Column(name = "last_exam_date")
+    private LocalDate lastExamDate;
+
+    @Column(name = "exam_marks")
+    private Double examMarks;
+
+    @Column(name = "physical_marks")
+    private Double physicalMarks;
+
+    @Column(name = "written_marks")
+    private Double writtenMarks;
+
+    @Column(name = "previous_district", length = 100)
+    private String previousDistrict;
+
+    // Physical Training Source
+    @Column(name = "physical_training_source", length = 100) // Ajinkya Foundation, Other
+    private String physicalTrainingSource;
+
+    // Discount & Concession
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private java.math.BigDecimal discountAmount;
+
+    @Column(name = "concession_amount", precision = 10, scale = 2)
+    private java.math.BigDecimal concessionAmount;
+
+    @Column(name = "discount_remarks", length = 255)
+    private String discountRemarks;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

@@ -90,6 +90,41 @@ public class MarksheetServiceImpl implements MarksheetService {
 
     @Override
     @Transactional
+    public List<MarksheetDto> saveBulkMarksheets(List<MarksheetDto> dtos) {
+        if (dtos == null || dtos.isEmpty()) {
+            throw new IllegalArgumentException("No marksheets provided for bulk upload");
+        }
+
+        List<Marksheet> marksheetsToSave = dtos.stream().map(dto -> {
+            if (dto.getStudentId() == null) {
+                throw new IllegalArgumentException("Student mapping is required for each marksheet");
+            }
+            Student student = studentRepository.findById(dto.getStudentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + dto.getStudentId()));
+
+            Batch batch = dto.getBatchId() != null ? batchRepository.findById(dto.getBatchId()).orElse(null) : student.getBatch();
+            ExamMaster exam = dto.getExamId() != null ? examMasterRepository.findById(dto.getExamId()).orElse(null) : null;
+
+            if (exam != null && marksheetRepository.existsByStudentStudentIdAndExamExamId(student.getStudentId(), exam.getExamId())) {
+                throw new IllegalArgumentException("Marksheet already uploaded for student '" + student.getStudentName() + "' and exam '" + exam.getExamName() + "'");
+            }
+
+            Marksheet marksheet = new Marksheet();
+            marksheet.setStudent(student);
+            marksheet.setBatch(batch);
+            marksheet.setAdmissionType(dto.getAdmissionType() != null ? dto.getAdmissionType() : student.getAdmissionType());
+            marksheet.setExam(exam);
+            marksheet.setFileUrl(dto.getFileUrl());
+            marksheet.setFileName(dto.getFileName());
+            return marksheet;
+        }).collect(Collectors.toList());
+
+        List<Marksheet> savedList = marksheetRepository.saveAll(marksheetsToSave);
+        return savedList.stream().map(this::mapToDto).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
     public void deleteMarksheet(Long id) {
         if (!marksheetRepository.existsById(id)) {
             throw new ResourceNotFoundException("Marksheet not found with ID: " + id);

@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -20,5 +21,10 @@ public class ReportController {
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> getReportsSummary() {
         return ResponseEntity.ok(ApiResponse.success("Report metrics retrieved successfully", reportService.getReportsSummary()));
+    }
+
+    @GetMapping("/student-growth")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getStudentGrowthReport() {
+        return ResponseEntity.ok(ApiResponse.success("Student growth report retrieved successfully", reportService.getStudentGrowthReport()));
     }
 }

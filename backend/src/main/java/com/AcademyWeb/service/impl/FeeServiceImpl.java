@@ -152,9 +152,15 @@ public class FeeServiceImpl implements FeeService {
             }
 
             BigDecimal totalFee = courseFee.add(planFee);
+            BigDecimal discountAmt = student.getDiscountAmount() != null ? student.getDiscountAmount() : BigDecimal.ZERO;
+            BigDecimal concessionAmt = student.getConcessionAmount() != null ? student.getConcessionAmount() : BigDecimal.ZERO;
+            BigDecimal finalFee = totalFee.subtract(discountAmt).subtract(concessionAmt);
+            if (finalFee.compareTo(BigDecimal.ZERO) < 0) {
+                finalFee = BigDecimal.ZERO;
+            }
             
             BigDecimal paidAmount = paidMap.getOrDefault(student.getStudentId(), BigDecimal.ZERO);
-            BigDecimal remainingAmount = totalFee.subtract(paidAmount);
+            BigDecimal remainingAmount = finalFee.subtract(paidAmount);
             if (remainingAmount.compareTo(BigDecimal.ZERO) < 0) {
                 remainingAmount = BigDecimal.ZERO;
             }
@@ -171,7 +177,7 @@ public class FeeServiceImpl implements FeeService {
             String batchName = student.getBatch() != null ? student.getBatch().getBatchName() : "-";
             
             String status = student.getStatus() != null ? student.getStatus() : "Active";
-            if (totalFee.compareTo(BigDecimal.ZERO) > 0 && remainingAmount.compareTo(BigDecimal.ZERO) == 0) {
+            if (finalFee.compareTo(BigDecimal.ZERO) > 0 && remainingAmount.compareTo(BigDecimal.ZERO) == 0) {
                 status = "Completed";
             }
 
@@ -185,9 +191,13 @@ public class FeeServiceImpl implements FeeService {
                     .planName(student.getLibraryPlan() != null ? student.getLibraryPlan().getPlanName() : null)
                     .batchName(batchName)
                     .totalFee(totalFee)
+                    .discountAmount(discountAmt)
+                    .concessionAmount(concessionAmt)
+                    .finalFee(finalFee)
                     .paidAmount(paidAmount)
                     .remainingAmount(remainingAmount)
                     .status(status)
+                    .rollNumber(student.getRollNumber())
                     .build();
         }).collect(Collectors.toList());
     }

@@ -247,6 +247,45 @@ export const ReportDetailPage: React.FC = () => {
           },
         ],
       },
+      'student-growth': {
+        title: 'Student Growth & Performance Report',
+        description: 'Track student progress over time, comparing previous vs current exam performance, physical & written marks',
+        icon: 'ti-trending-up',
+        apiEndpoint: '/reports/student-growth',
+        dateKey: 'createdAt',
+        statusOptions: [
+          { label: 'Positive Growth', value: 'POSITIVE' },
+          { label: 'Declining', value: 'NEGATIVE' },
+        ],
+        columns: [
+          { header: 'Roll No', key: 'rollNumber' },
+          { header: 'Student Name', key: 'studentName' },
+          { header: 'Batch', key: 'batchName' },
+          { header: 'Course', key: 'courseName' },
+          { header: 'Previous Exam Marks', key: 'previousMarks' },
+          { header: 'Physical Marks', key: 'physicalMarks' },
+          { header: 'Written Marks', key: 'writtenMarks' },
+          { header: 'Current Total Marks', key: 'currentTotalMarks' },
+          {
+            header: 'Improvement',
+            key: 'improvement',
+            render: (row) => (
+              <span style={{ color: row.improvement >= 0 ? '#047857' : '#b91c1c', fontWeight: 600 }}>
+                {row.improvement >= 0 ? `+${row.improvement}` : row.improvement} ({row.growthPercent}%)
+              </span>
+            ),
+          },
+          {
+            header: 'Growth Trend',
+            key: 'trend',
+            render: (row) => (
+              <span className={`badge ${row.trend === 'POSITIVE' ? 'badge-green' : 'badge-red'}`}>
+                {row.trend === 'POSITIVE' ? 'Positive Growth' : 'Needs Focus'}
+              </span>
+            ),
+          },
+        ],
+      },
     }),
     []
   );

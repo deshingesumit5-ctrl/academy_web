@@ -51,4 +51,32 @@ public class StudentDto {
     private String batchName;
     private LocalDate admissionDate;
     private String status;
+
+    // New Fields
+    private String rollNumber;
+    private String religion;
+    private String caste;
+    private String kitSize;
+    private String hasSportsCertificate;
+    private String sportsCertificateDetails;
+    private String sportsCertificateDoc;
+    private String hasNccCertificate;
+    private String nccCertificateDetails;
+    private String nccCertificateDoc;
+
+    // Previous Year Details
+    private LocalDate lastExamDate;
+    private Double examMarks;
+    private Double physicalMarks;
+    private Double writtenMarks;
+    private String previousDistrict;
+
+    // Physical Training Source
+    private String physicalTrainingSource;
+
+    // Discount & Concession
+    private java.math.BigDecimal discountAmount;
+    private java.math.BigDecimal concessionAmount;
+    private String discountRemarks;
+    private java.math.BigDecimal finalFee;
 }

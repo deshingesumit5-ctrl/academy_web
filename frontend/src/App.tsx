@@ -18,9 +18,13 @@ import { InquirySourcePage } from './features/master/inquiry-source/InquirySourc
 import { FeeStructurePage } from './features/master/fee-structure/FeeStructurePage';
 import { EmployeePage } from './features/master/employee/EmployeePage';
 import { UserMasterPage } from './features/master/user/UserMasterPage';
+import { CastePage } from './features/master/caste/CastePage';
+import { ReligionPage } from './features/master/religion/ReligionPage';
+import { KitSizePage } from './features/master/kit-size/KitSizePage';
 
 
 import { RegistrationPage } from './features/registration/RegistrationPage';
+import { StudentDetailsPage } from './features/registration/StudentDetailsPage';
 import { AttendancePage } from './features/attendance/AttendancePage';
 import { FeeManagementPage } from './features/fees/FeeManagementPage';
 import { MarksheetPage } from './features/marksheet/MarksheetPage';
@@ -47,6 +51,9 @@ const pageTitles: Record<string, string> = {
   '/masters/fee-structure': 'Fee structure master',
   '/masters/employee': 'Employee master',
   '/masters/user': 'User master',
+  '/masters/caste': 'Caste master',
+  '/masters/religion': 'Religion master',
+  '/masters/kit-size': 'Kit size master',
   '/masters/blood-group': 'Blood group master',
   '/registration': 'Student registration',
   '/attendance': 'Attendance management',
@@ -203,8 +210,12 @@ const MainLayout: React.FC = () => {
             <Route path="/masters/fee-structure" element={<FeeStructurePage />} />
             <Route path="/masters/employee" element={<EmployeePage />} />
             <Route path="/masters/user" element={<UserMasterPage />} />
+            <Route path="/masters/caste" element={<CastePage />} />
+            <Route path="/masters/religion" element={<ReligionPage />} />
+            <Route path="/masters/kit-size" element={<KitSizePage />} />
 
             <Route path="/registration" element={<RegistrationPage />} />
+            <Route path="/student-details/:id" element={<StudentDetailsPage />} />
             <Route path="/students" element={<Navigate to="/registration" replace />} />
             <Route path="/attendance" element={<AttendancePage />} />
             <Route path="/fees" element={<FeeManagementPage />} />

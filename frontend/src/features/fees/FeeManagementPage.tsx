@@ -3,6 +3,7 @@ import axiosInstance from '../../config/axiosInstance';
 import { getCachedData } from '../../config/apiCache';
 import { Modal } from '../../components/Modal';
 import { validateRequired, FieldError } from '../../validations';
+import { DiscountModal } from './components/DiscountModal';
 
 interface StudentFeeStructure {
   studentId: number;
@@ -14,9 +15,13 @@ interface StudentFeeStructure {
   planName: string;
   batchName: string;
   totalFee: number;
+  discountAmount?: number;
+  concessionAmount?: number;
+  finalFee?: number;
   paidAmount: number;
   remainingAmount: number;
   status: string;
+  rollNumber?: string;
 }
 
 interface PaymentHistoryItem {
@@ -76,6 +81,10 @@ export const FeeManagementPage: React.FC = () => {
   const [historyStudent, setHistoryStudent] = useState<StudentFeeStructure | null>(null);
   const [historyList, setHistoryList] = useState<PaymentHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Discount Modal State
+  const [discountModalOpen, setDiscountModalOpen] = useState(false);
+  const [discountStudent, setDiscountStudent] = useState<StudentFeeStructure | null>(null);
 
   useEffect(() => {
     fetchFeeStructures(structures.length === 0);
@@ -358,11 +367,14 @@ export const FeeManagementPage: React.FC = () => {
                 <tr style={{ background: '#f7fafc', borderBottom: '2px solid #edf2f7', textAlign: 'left', color: '#4a5568', fontWeight: 600 }}>
                   <th style={{ padding: '12px 10px' }}>Sr. No.</th>
                   <th style={{ padding: '12px 10px' }}>Student ID</th>
+                  <th style={{ padding: '12px 10px' }}>Roll No</th>
                   <th style={{ padding: '12px 10px' }}>Student Name</th>
                   <th style={{ padding: '12px 10px' }}>Registration Type</th>
                   <th style={{ padding: '12px 10px' }}>Course</th>
                   <th style={{ padding: '12px 10px' }}>Batch</th>
-                  <th style={{ padding: '12px 10px' }}>Total Fee Amount</th>
+                  <th style={{ padding: '12px 10px' }}>Total Fee</th>
+                  <th style={{ padding: '12px 10px' }}>Discount/Concession</th>
+                  <th style={{ padding: '12px 10px' }}>Final Fee</th>
                   <th style={{ padding: '12px 10px' }}>Paid Amount</th>
                   <th style={{ padding: '12px 10px' }}>Remaining Amount</th>
                   <th style={{ padding: '12px 10px' }}>Status</th>
@@ -370,15 +382,23 @@ export const FeeManagementPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredStructures.map((s, idx) => (
+                {filteredStructures.map((s, idx) => {
+                  const discountConcessionTotal = (s.discountAmount || 0) + (s.concessionAmount || 0);
+                  const finalPayable = s.finalFee !== undefined ? s.finalFee : Math.max(0, s.totalFee - discountConcessionTotal);
+                  return (
                   <tr key={s.studentId} style={{ borderBottom: '1px solid #edf2f7' }}>
                     <td style={{ padding: '12px 10px', color: '#718096' }}>{idx + 1}</td>
                     <td style={{ padding: '12px 10px', fontWeight: 600, color: '#2b6cb0' }}>{s.admissionNumber}</td>
+                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#4a5568' }}>{s.rollNumber || '-'}</td>
                     <td style={{ padding: '12px 10px', fontWeight: 600, color: '#2b6cb0' }}>{s.studentName}</td>
                     <td style={{ padding: '12px 10px', color: '#4a5568' }}>{s.admissionType}</td>
                     <td style={{ padding: '12px 10px', color: '#2d3748' }}>{s.courseName}</td>
                     <td style={{ padding: '12px 10px', color: '#4a5568' }}>{s.batchName}</td>
                     <td style={{ padding: '12px 10px', fontWeight: 600, color: '#2d3748' }}>{formatCurrency(s.totalFee)}</td>
+                    <td style={{ padding: '12px 10px', color: discountConcessionTotal > 0 ? '#dd6b20' : '#a0aec0', fontWeight: discountConcessionTotal > 0 ? 600 : 400 }}>
+                      {discountConcessionTotal > 0 ? `- ${formatCurrency(discountConcessionTotal)}` : '-'}
+                    </td>
+                    <td style={{ padding: '12px 10px', fontWeight: 700, color: '#2b6cb0' }}>{formatCurrency(finalPayable)}</td>
                     <td style={{ padding: '12px 10px', fontWeight: 600, color: '#38a169' }}>{formatCurrency(s.paidAmount)}</td>
                     <td style={{ padding: '12px 10px', fontWeight: 600, color: s.remainingAmount > 0 ? '#e53e3e' : '#38a169' }}>{formatCurrency(s.remainingAmount)}</td>
                     <td style={{ padding: '12px 10px' }}>
@@ -396,20 +416,39 @@ export const FeeManagementPage: React.FC = () => {
                       </span>
                     </td>
                     <td style={{ padding: '12px 10px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}>
                         <button
                           className="btn btn-primary"
                           onClick={() => openCollectPaymentModal(s)}
-                          style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', fontWeight: 500 }}
+                          style={{ fontSize: '12px', padding: '6px 10px', borderRadius: '6px', fontWeight: 500 }}
                         >
-                          Collect Payment
+                          Collect
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDiscountStudent(s);
+                            setDiscountModalOpen(true);
+                          }}
+                          title="Assign Discount / Concession"
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #ed8936',
+                            background: '#fffaf0',
+                            color: '#dd6b20',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Discount
                         </button>
                         <button
                           onClick={() => openPaymentHistoryModal(s)}
                           title="Payment History"
                           style={{
-                            width: '32px',
-                            height: '32px',
+                            width: '30px',
+                            height: '30px',
                             borderRadius: '50%',
                             border: '1px solid #cbd5e0',
                             background: '#fff',
@@ -418,15 +457,15 @@ export const FeeManagementPage: React.FC = () => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
-                            transition: 'all 0.2s',
                           }}
                         >
-                          <i className="ti ti-clock" style={{ fontSize: '16px' }}></i>
+                          <i className="ti ti-clock" style={{ fontSize: '14px' }}></i>
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           </div>
@@ -679,6 +718,13 @@ export const FeeManagementPage: React.FC = () => {
           </button>
         </div>
       )}
+      {/* Discount Modal */}
+      <DiscountModal
+        isOpen={discountModalOpen}
+        student={discountStudent}
+        onClose={() => setDiscountModalOpen(false)}
+        onSuccess={() => fetchFeeStructures(false)}
+      />
     </div>
   );
 };

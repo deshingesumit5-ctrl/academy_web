@@ -18,7 +18,7 @@ export const prefetchAllData = (): void => {
     '/roles',
     '/inquiries',
     '/tasks',
-    '/follow-ups',
+    '/followups',
     '/blood-groups',
   ];
 

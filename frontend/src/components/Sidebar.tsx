@@ -3,6 +3,8 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import axiosInstance from '../config/axiosInstance';
 
+import { isTaskAssignedToUser } from '../utils/taskUtils';
+
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,26 +26,39 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const navMenuRef = useRef<HTMLDivElement>(null);
 
+  const markTasksAsRead = async () => {
+    if (!user) return;
+    try {
+      const res = await axiosInstance.get('/tasks');
+      const allTasks: any[] = res.data.data || [];
+      const myTasks = allTasks.filter((t) => isTaskAssignedToUser(t, user));
+      const key = `seen_tasks_${user.username || user.userId || 'user'}`;
+      const existing: number[] = JSON.parse(localStorage.getItem(key) || '[]');
+      const newIds = myTasks.map((t) => t.taskId);
+      const combined = Array.from(new Set([...existing, ...newIds]));
+      localStorage.setItem(key, JSON.stringify(combined));
+      setUnreadTaskCount(0);
+      window.dispatchEvent(new Event('tasks_read'));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleOperationsClick = () => {
+    if (unreadTaskCount > 0) {
+      markTasksAsRead();
+    }
+    navigate('/tasks');
+  };
+
   const checkUnreadTasks = async () => {
     if (!user) return;
     try {
       const res = await axiosInstance.get('/tasks');
       const allTasks: any[] = res.data.data || [];
-      const userFull = (user.fullName || '').trim().toLowerCase();
-      const userEmail = (user.username || '').trim().toLowerCase();
+      const myTasks = allTasks.filter((t) => isTaskAssignedToUser(t, user));
 
-      const roleUpper = (user.role || '').toUpperCase();
-      const isEmployeeOrUser = roleUpper === 'USER' || roleUpper.includes('EMPLOYEE');
-      const isAdminUser = (isSuperAdmin() || roleUpper.includes('ADMIN') || hasPermission('Tasks', 'Create')) && !isEmployeeOrUser;
-
-      const myTasks = (isSuperAdmin() || isAdminUser)
-        ? allTasks
-        : allTasks.filter((t) => {
-            const assigned = (t.assignedTo || '').trim().toLowerCase();
-            return (userFull && assigned === userFull) || (userEmail && assigned === userEmail);
-          });
-
-      const key = `seen_tasks_${user.username || 'user'}`;
+      const key = `seen_tasks_${user.username || user.userId || 'user'}`;
       const seenIds: number[] = JSON.parse(localStorage.getItem(key) || '[]');
 
       const unread = myTasks.filter((t) => !seenIds.includes(t.taskId));
@@ -329,13 +344,40 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           {/* Operations Group */}
           {showOperationsGroup && (
             <div className={`nav-group dropdown-group ${isOperationsActive ? 'active' : ''} ${openDropdown === 'operations' ? 'open' : ''}`}>
-              <div className="nav-section mobile-only">Operations</div>
+              <div className="nav-section mobile-only">
+                Operations {unreadTaskCount > 0 && `(${unreadTaskCount})`}
+              </div>
               <div
                 className={`nav-item dropdown-trigger desktop-only ${isOperationsActive ? 'active' : ''}`}
-                onClick={() => toggleDropdown('operations')}
+                onClick={() => {
+                  if (unreadTaskCount > 0) {
+                    handleOperationsClick();
+                  } else {
+                    toggleDropdown('operations');
+                  }
+                }}
               >
                 <div className="nav-item-left">
-                  <span>Operations {unreadTaskCount > 0 && `(${unreadTaskCount})`}</span>
+                  <span>
+                    Operations{' '}
+                    {unreadTaskCount > 0 && (
+                      <span
+                        style={{
+                          marginLeft: '4px',
+                          backgroundColor: '#EF4444',
+                          color: '#FFFFFF',
+                          borderRadius: '10px',
+                          padding: '1px 6px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          display: 'inline-block',
+                          lineHeight: '1.3'
+                        }}
+                      >
+                        ({unreadTaskCount})
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <i className="ti ti-chevron-down dropdown-arrow"></i>
               </div>
@@ -346,7 +388,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   </NavLink>
                 )}
                 {showTasks && (
-                  <NavLink to="/tasks" className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`} onClick={() => { setOpenDropdown(null); onClose(); }}>
+                  <NavLink
+                    to="/tasks"
+                    className={({ isActive }) => `nav-sub-item ${isActive ? 'active' : ''}`}
+                    onClick={() => {
+                      if (unreadTaskCount > 0) {
+                        markTasksAsRead();
+                      }
+                      setOpenDropdown(null);
+                      onClose();
+                    }}
+                  >
                     <i className="ti ti-checklist"></i>Task Management {unreadTaskCount > 0 && `(${unreadTaskCount})`}
                   </NavLink>
                 )}

@@ -14,6 +14,9 @@ export const MasterOverviewPage: React.FC = () => {
     { title: 'Exam master', desc: 'Unit, weekly, monthly, final, scholarship, custom', icon: 'ti-clipboard-text', route: '/masters/exam' },
     { title: 'Inquiry source master', desc: 'Walk-in, website, social, referral, WhatsApp', icon: 'ti-route', route: '/masters/inquiry-source' },
     { title: 'Fee structure master', desc: 'Academy/library plans, installments, discounts', icon: 'ti-receipt', route: '/masters/fee-structure' },
+    { title: 'Caste master', desc: 'Caste options for student registration', icon: 'ti-category', route: '/masters/caste' },
+    { title: 'Religion master', desc: 'Religion options for student registration', icon: 'ti-world', route: '/masters/religion' },
+    { title: 'Kit size master', desc: 'Kit size options (S, M, L, XL, etc.)', icon: 'ti-shirt', route: '/masters/kit-size' },
     { title: 'Blood group master', desc: 'Blood group options and management', icon: 'ti-droplet', route: '/masters/blood-group' },
   ];
 

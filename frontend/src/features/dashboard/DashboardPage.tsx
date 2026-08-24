@@ -27,14 +27,14 @@ interface DashboardStats {
   totalInquiriesCount?: number;
 }
 
+import { isUserAdmin, isTaskAssignedToUser } from '../../utils/taskUtils';
+
 export const DashboardPage: React.FC = () => {
   const { isSuperAdmin, hasPermission, user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [followupFilter, setFollowupFilter] = useState<'all' | 'today' | 'upcoming' | 'missed'>('all');
   const navigate = useNavigate();
-
-
 
   const canViewAttendance = isSuperAdmin() || hasPermission('Attendance', 'Read');
   const canViewFeeManagement = isSuperAdmin() || hasPermission('Fee Management', 'Read');
@@ -47,26 +47,11 @@ export const DashboardPage: React.FC = () => {
   const visibleTablesCount = (canViewFollowups ? 1 : 0) + (canViewTasks ? 1 : 0);
   const gridClass = visibleTablesCount === 1 ? 'one-col' : 'two-col';
 
-  const userFull = (user?.fullName || '').trim().toLowerCase();
-  const userEmail = (user?.username || '').trim().toLowerCase();
-  const userRole = (user?.role || '').trim().toLowerCase();
+  const isAdmin = isUserAdmin(user, isSuperAdmin);
 
-  const roleUpper = (user?.role || '').toUpperCase();
-  const isEmployeeOrUser = roleUpper === 'USER' || roleUpper.includes('EMPLOYEE');
-  const isAdmin = (isSuperAdmin() || roleUpper.includes('ADMIN') || hasPermission('Tasks', 'Create')) && !isEmployeeOrUser;
-
-  const userTasks = (isSuperAdmin() || isAdmin)
+  const userTasks = isAdmin
     ? (stats?.todaysTasks || [])
-    : (stats?.todaysTasks || []).filter((t: any) => {
-        if (!user) return false;
-        const assigned = (t.assignedTo || '').trim().toLowerCase();
-        if (!assigned) return false;
-        return (
-          (userFull && assigned === userFull) ||
-          (userEmail && assigned === userEmail) ||
-          (userRole && assigned === userRole)
-        );
-      });
+    : (stats?.todaysTasks || []).filter((t: any) => isTaskAssignedToUser(t, user));
 
   const fetchStats = async () => {
     setLoading(true);

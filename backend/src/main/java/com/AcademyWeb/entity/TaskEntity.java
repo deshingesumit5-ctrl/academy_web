@@ -40,6 +40,18 @@ public class TaskEntity {
     @Column(name = "status", nullable = false, length = 30) // Pending, Done, Scheduled
     private String status = "Pending";
 
+    @Column(name = "send_via_whatsapp")
+    private Boolean sendViaWhatsApp = false;
+
+    @Column(name = "recurrence_type", length = 30) // ONE_TIME, DAILY, WEEKLY, MONTHLY
+    private String recurrenceType = "ONE_TIME";
+
+    @Column(name = "recurrence_day", length = 30) // Monday, Tuesday, etc.
+    private String recurrenceDay;
+
+    @Column(name = "recurrence_date") // 1 to 31
+    private Integer recurrenceDate;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 }

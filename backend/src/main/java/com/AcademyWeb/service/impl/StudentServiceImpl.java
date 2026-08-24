@@ -14,8 +14,8 @@ import com.AcademyWeb.service.StudentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -65,6 +65,25 @@ public class StudentServiceImpl implements StudentService {
                 .batchName(entity.getBatch() != null ? entity.getBatch().getBatchName() : null)
                 .admissionDate(entity.getAdmissionDate())
                 .status(entity.getStatus())
+                .rollNumber(entity.getRollNumber())
+                .religion(entity.getReligion())
+                .caste(entity.getCaste())
+                .kitSize(entity.getKitSize())
+                .hasSportsCertificate(entity.getHasSportsCertificate())
+                .sportsCertificateDetails(entity.getSportsCertificateDetails())
+                .sportsCertificateDoc(entity.getSportsCertificateDoc())
+                .hasNccCertificate(entity.getHasNccCertificate())
+                .nccCertificateDetails(entity.getNccCertificateDetails())
+                .nccCertificateDoc(entity.getNccCertificateDoc())
+                .lastExamDate(entity.getLastExamDate())
+                .examMarks(entity.getExamMarks())
+                .physicalMarks(entity.getPhysicalMarks())
+                .writtenMarks(entity.getWrittenMarks())
+                .previousDistrict(entity.getPreviousDistrict())
+                .physicalTrainingSource(entity.getPhysicalTrainingSource())
+                .discountAmount(entity.getDiscountAmount())
+                .concessionAmount(entity.getConcessionAmount())
+                .discountRemarks(entity.getDiscountRemarks())
                 .build();
     }
 
@@ -90,7 +109,18 @@ public class StudentServiceImpl implements StudentService {
                 : null;
         Batch batch = dto.getBatchId() != null ? batchRepository.findById(dto.getBatchId()).orElse(null) : null;
 
-        String admissionNo = "ADM" + (1000 + (int) (Math.random() * 9000));
+        // Roll Number uniqueness validation: cannot be assigned if an ACTIVE / non-INACTIVE student has it
+        if (dto.getRollNumber() != null && !dto.getRollNumber().trim().isEmpty()) {
+            String roll = dto.getRollNumber().trim();
+            if (studentRepository.existsByRollNumberAndStatusNot(roll, "INACTIVE")) {
+                throw new IllegalArgumentException("This roll number is not available");
+            }
+        }
+
+        String admissionNo = dto.getAdmissionNumber() != null && !dto.getAdmissionNumber().trim().isEmpty()
+                ? dto.getAdmissionNumber().trim()
+                : "ADM" + (1000 + (int) (Math.random() * 9000));
+
         String photoVal = dto.getPhoto() != null ? dto.getPhoto() : dto.getPhotoUrl();
 
         Student student = Student.builder()
@@ -102,6 +132,7 @@ public class StudentServiceImpl implements StudentService {
                 .email(dto.getEmail())
                 .address(dto.getAddress())
                 .aadhaarNumber(dto.getAadhaarNumber())
+                .photoUrl(photoVal)
                 .fatherName(dto.getFatherName())
                 .motherName(dto.getMotherName())
                 .parentMobile(dto.getParentMobile())
@@ -115,6 +146,25 @@ public class StudentServiceImpl implements StudentService {
                 .batch(batch)
                 .admissionDate(dto.getAdmissionDate() != null ? dto.getAdmissionDate() : java.time.LocalDate.now())
                 .status(dto.getStatus() != null ? dto.getStatus() : "ACTIVE")
+                .rollNumber(dto.getRollNumber())
+                .religion(dto.getReligion())
+                .caste(dto.getCaste())
+                .kitSize(dto.getKitSize())
+                .hasSportsCertificate(dto.getHasSportsCertificate())
+                .sportsCertificateDetails(dto.getSportsCertificateDetails())
+                .sportsCertificateDoc(dto.getSportsCertificateDoc())
+                .hasNccCertificate(dto.getHasNccCertificate())
+                .nccCertificateDetails(dto.getNccCertificateDetails())
+                .nccCertificateDoc(dto.getNccCertificateDoc())
+                .lastExamDate(dto.getLastExamDate())
+                .examMarks(dto.getExamMarks())
+                .physicalMarks(dto.getPhysicalMarks())
+                .writtenMarks(dto.getWrittenMarks())
+                .previousDistrict(dto.getPreviousDistrict())
+                .physicalTrainingSource(dto.getPhysicalTrainingSource())
+                .discountAmount(dto.getDiscountAmount())
+                .concessionAmount(dto.getConcessionAmount())
+                .discountRemarks(dto.getDiscountRemarks())
                 .build();
 
         Student saved = studentRepository.save(student);
@@ -126,6 +176,18 @@ public class StudentServiceImpl implements StudentService {
     public StudentDto updateStudent(Long id, StudentDto dto) {
         Student existing = studentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + id));
+
+        Batch batch = dto.getBatchId() != null ? batchRepository.findById(dto.getBatchId()).orElse(existing.getBatch()) : existing.getBatch();
+        Course course = dto.getCourseId() != null ? courseRepository.findById(dto.getCourseId()).orElse(existing.getCourse()) : existing.getCourse();
+
+        // Roll Number uniqueness validation
+        if (dto.getRollNumber() != null && !dto.getRollNumber().trim().isEmpty()) {
+            String roll = dto.getRollNumber().trim();
+            if (studentRepository.existsByRollNumberAndStatusNotAndStudentIdNot(roll, "INACTIVE", id)) {
+                throw new IllegalArgumentException("This roll number is not available");
+            }
+            existing.setRollNumber(roll);
+        }
 
         existing.setStudentName(dto.getStudentName());
         existing.setGender(dto.getGender());
@@ -152,6 +214,31 @@ public class StudentServiceImpl implements StudentService {
             existing.setStatus(dto.getStatus());
         }
 
+        existing.setReligion(dto.getReligion());
+        existing.setCaste(dto.getCaste());
+        existing.setKitSize(dto.getKitSize());
+        existing.setHasSportsCertificate(dto.getHasSportsCertificate());
+        existing.setSportsCertificateDetails(dto.getSportsCertificateDetails());
+        if (dto.getSportsCertificateDoc() != null) {
+            existing.setSportsCertificateDoc(dto.getSportsCertificateDoc());
+        }
+        existing.setHasNccCertificate(dto.getHasNccCertificate());
+        existing.setNccCertificateDetails(dto.getNccCertificateDetails());
+        if (dto.getNccCertificateDoc() != null) {
+            existing.setNccCertificateDoc(dto.getNccCertificateDoc());
+        }
+
+        existing.setLastExamDate(dto.getLastExamDate());
+        existing.setExamMarks(dto.getExamMarks());
+        existing.setPhysicalMarks(dto.getPhysicalMarks());
+        existing.setWrittenMarks(dto.getWrittenMarks());
+        existing.setPreviousDistrict(dto.getPreviousDistrict());
+        existing.setPhysicalTrainingSource(dto.getPhysicalTrainingSource());
+
+        if (dto.getDiscountAmount() != null) existing.setDiscountAmount(dto.getDiscountAmount());
+        if (dto.getConcessionAmount() != null) existing.setConcessionAmount(dto.getConcessionAmount());
+        if (dto.getDiscountRemarks() != null) existing.setDiscountRemarks(dto.getDiscountRemarks());
+
         if (dto.getCourseId() != null) {
             existing.setCourse(courseRepository.findById(dto.getCourseId()).orElse(null));
         }
@@ -164,6 +251,40 @@ public class StudentServiceImpl implements StudentService {
 
         Student updated = studentRepository.save(existing);
         return mapToDto(updated);
+    }
+
+    @Override
+    @Transactional
+    public StudentDto reassignRollNumber(Long id, String newRollNumber) {
+        Student existing = studentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + id));
+
+        if (newRollNumber == null || newRollNumber.trim().isEmpty()) {
+            throw new IllegalArgumentException("Roll number cannot be empty");
+        }
+        String roll = newRollNumber.trim();
+
+        if (studentRepository.existsByRollNumberAndStatusNotAndStudentIdNot(roll, "INACTIVE", id)) {
+            throw new IllegalArgumentException("This roll number is not available");
+        }
+
+        existing.setRollNumber(roll);
+        Student saved = studentRepository.save(existing);
+        return mapToDto(saved);
+    }
+
+    @Override
+    @Transactional
+    public StudentDto assignDiscountAndConcession(Long id, BigDecimal discountAmount, BigDecimal concessionAmount, String remarks) {
+        Student existing = studentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + id));
+
+        existing.setDiscountAmount(discountAmount != null ? discountAmount : BigDecimal.ZERO);
+        existing.setConcessionAmount(concessionAmount != null ? concessionAmount : BigDecimal.ZERO);
+        existing.setDiscountRemarks(remarks);
+
+        Student saved = studentRepository.save(existing);
+        return mapToDto(saved);
     }
 
     @Override

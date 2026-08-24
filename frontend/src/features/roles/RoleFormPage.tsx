@@ -225,16 +225,16 @@ export const RoleFormPage: React.FC = () => {
               </select>
             </div>
 
-            <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+            <div className="form-field">
               <label style={{ display: 'block', fontWeight: 500, fontSize: '14px', marginBottom: '6px', color: '#334155' }}>
                 Description
               </label>
-              <textarea
-                rows={2}
+              <input
+                type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Brief summary of role responsibilities..."
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px', fontFamily: 'inherit' }}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '14px' }}
               />
             </div>
           </div>

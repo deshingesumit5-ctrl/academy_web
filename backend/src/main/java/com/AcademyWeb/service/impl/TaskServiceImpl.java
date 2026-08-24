@@ -31,6 +31,10 @@ public class TaskServiceImpl implements TaskService {
                 .priority(entity.getPriority())
                 .dueDate(entity.getDueDate())
                 .status(entity.getStatus())
+                .sendViaWhatsApp(entity.getSendViaWhatsApp())
+                .recurrenceType(entity.getRecurrenceType())
+                .recurrenceDay(entity.getRecurrenceDay())
+                .recurrenceDate(entity.getRecurrenceDate())
                 .build();
     }
 
@@ -44,6 +48,10 @@ public class TaskServiceImpl implements TaskService {
                 .priority(dto.getPriority())
                 .dueDate(dto.getDueDate() != null ? dto.getDueDate() : LocalDate.now())
                 .status(dto.getStatus() != null ? dto.getStatus() : "Pending")
+                .sendViaWhatsApp(dto.getSendViaWhatsApp() != null ? dto.getSendViaWhatsApp() : false)
+                .recurrenceType(dto.getRecurrenceType() != null ? dto.getRecurrenceType() : "ONE_TIME")
+                .recurrenceDay(dto.getRecurrenceDay())
+                .recurrenceDate(dto.getRecurrenceDate())
                 .build();
     }
 
@@ -77,6 +85,14 @@ public class TaskServiceImpl implements TaskService {
         if (dto.getStatus() != null) {
             existing.setStatus(dto.getStatus());
         }
+        if (dto.getSendViaWhatsApp() != null) {
+            existing.setSendViaWhatsApp(dto.getSendViaWhatsApp());
+        }
+        if (dto.getRecurrenceType() != null) {
+            existing.setRecurrenceType(dto.getRecurrenceType());
+        }
+        existing.setRecurrenceDay(dto.getRecurrenceDay());
+        existing.setRecurrenceDate(dto.getRecurrenceDate());
 
         TaskEntity updated = taskRepository.save(existing);
         return mapToDto(updated);

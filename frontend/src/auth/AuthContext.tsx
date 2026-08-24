@@ -8,6 +8,7 @@ export interface User {
   roleId?: number | null;
   permissions?: string | Record<string, string[]> | null;
 }
+export const User = {};
 
 interface AuthContextType {
   token: string | null;

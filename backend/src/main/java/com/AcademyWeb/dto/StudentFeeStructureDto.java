@@ -20,7 +20,11 @@ public class StudentFeeStructureDto {
     private String planName;
     private String batchName;
     private BigDecimal totalFee;
+    private BigDecimal discountAmount;
+    private BigDecimal concessionAmount;
+    private BigDecimal finalFee;
     private BigDecimal paidAmount;
     private BigDecimal remainingAmount;
     private String status;
+    private String rollNumber;
 }
