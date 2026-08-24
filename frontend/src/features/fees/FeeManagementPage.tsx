@@ -258,7 +258,7 @@ export const FeeManagementPage: React.FC = () => {
 
   const formatCurrency = (amount: number | undefined | null) => {
     if (amount === undefined || amount === null) return '₹0';
-    return `₹ ${amount.toLocaleString('en-IN')}`;
+    return `₹\u00A0${amount.toLocaleString('en-IN')}`;
   };
 
   return (
@@ -364,7 +364,7 @@ export const FeeManagementPage: React.FC = () => {
           <div className="table-responsive">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
               <thead>
-                <tr style={{ background: '#f7fafc', borderBottom: '2px solid #edf2f7', textAlign: 'left', color: '#4a5568', fontWeight: 600 }}>
+                <tr style={{ background: '#f7fafc', borderBottom: '2px solid #edf2f7', textAlign: 'left', color: '#4a5568', fontWeight: 600, whiteSpace: 'nowrap' }}>
                   <th style={{ padding: '12px 10px' }}>Sr. No.</th>
                   <th style={{ padding: '12px 10px' }}>Student ID</th>
                   <th style={{ padding: '12px 10px' }}>Roll No</th>
@@ -373,7 +373,7 @@ export const FeeManagementPage: React.FC = () => {
                   <th style={{ padding: '12px 10px' }}>Course</th>
                   <th style={{ padding: '12px 10px' }}>Batch</th>
                   <th style={{ padding: '12px 10px' }}>Total Fee</th>
-                  <th style={{ padding: '12px 10px' }}>Discount/Concession</th>
+                  <th style={{ padding: '12px 10px' }}>Concession</th>
                   <th style={{ padding: '12px 10px' }}>Final Fee</th>
                   <th style={{ padding: '12px 10px' }}>Paid Amount</th>
                   <th style={{ padding: '12px 10px' }}>Remaining Amount</th>
@@ -387,21 +387,21 @@ export const FeeManagementPage: React.FC = () => {
                   const finalPayable = s.finalFee !== undefined ? s.finalFee : Math.max(0, s.totalFee - discountConcessionTotal);
                   return (
                   <tr key={s.studentId} style={{ borderBottom: '1px solid #edf2f7' }}>
-                    <td style={{ padding: '12px 10px', color: '#718096' }}>{idx + 1}</td>
-                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#2b6cb0' }}>{s.admissionNumber}</td>
-                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#4a5568' }}>{s.rollNumber || '-'}</td>
-                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#2b6cb0' }}>{s.studentName}</td>
-                    <td style={{ padding: '12px 10px', color: '#4a5568' }}>{s.admissionType}</td>
+                    <td style={{ padding: '12px 10px', color: '#718096', whiteSpace: 'nowrap' }}>{idx + 1}</td>
+                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#2b6cb0', whiteSpace: 'nowrap' }}>{s.admissionNumber}</td>
+                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#4a5568', whiteSpace: 'nowrap' }}>{s.rollNumber || '-'}</td>
+                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#2b6cb0', whiteSpace: 'nowrap' }}>{s.studentName}</td>
+                    <td style={{ padding: '12px 10px', color: '#4a5568', whiteSpace: 'nowrap' }}>{s.admissionType}</td>
                     <td style={{ padding: '12px 10px', color: '#2d3748' }}>{s.courseName}</td>
-                    <td style={{ padding: '12px 10px', color: '#4a5568' }}>{s.batchName}</td>
-                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#2d3748' }}>{formatCurrency(s.totalFee)}</td>
-                    <td style={{ padding: '12px 10px', color: discountConcessionTotal > 0 ? '#dd6b20' : '#a0aec0', fontWeight: discountConcessionTotal > 0 ? 600 : 400 }}>
+                    <td style={{ padding: '12px 10px', color: '#4a5568', whiteSpace: 'nowrap' }}>{s.batchName}</td>
+                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#2d3748', whiteSpace: 'nowrap' }}>{formatCurrency(s.totalFee)}</td>
+                    <td style={{ padding: '12px 10px', color: discountConcessionTotal > 0 ? '#dd6b20' : '#a0aec0', fontWeight: discountConcessionTotal > 0 ? 600 : 400, whiteSpace: 'nowrap' }}>
                       {discountConcessionTotal > 0 ? `- ${formatCurrency(discountConcessionTotal)}` : '-'}
                     </td>
-                    <td style={{ padding: '12px 10px', fontWeight: 700, color: '#2b6cb0' }}>{formatCurrency(finalPayable)}</td>
-                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#38a169' }}>{formatCurrency(s.paidAmount)}</td>
-                    <td style={{ padding: '12px 10px', fontWeight: 600, color: s.remainingAmount > 0 ? '#e53e3e' : '#38a169' }}>{formatCurrency(s.remainingAmount)}</td>
-                    <td style={{ padding: '12px 10px' }}>
+                    <td style={{ padding: '12px 10px', fontWeight: 700, color: '#2b6cb0', whiteSpace: 'nowrap' }}>{formatCurrency(finalPayable)}</td>
+                    <td style={{ padding: '12px 10px', fontWeight: 600, color: '#38a169', whiteSpace: 'nowrap' }}>{formatCurrency(s.paidAmount)}</td>
+                    <td style={{ padding: '12px 10px', fontWeight: 600, color: s.remainingAmount > 0 ? '#e53e3e' : '#38a169', whiteSpace: 'nowrap' }}>{formatCurrency(s.remainingAmount)}</td>
+                    <td style={{ padding: '12px 10px', whiteSpace: 'nowrap' }}>
                       <span
                         style={{
                           padding: '4px 10px',
@@ -415,7 +415,7 @@ export const FeeManagementPage: React.FC = () => {
                         {s.status}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                    <td style={{ padding: '12px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}>
                         <button
                           className="btn btn-primary"
@@ -429,7 +429,7 @@ export const FeeManagementPage: React.FC = () => {
                             setDiscountStudent(s);
                             setDiscountModalOpen(true);
                           }}
-                          title="Assign Discount / Concession"
+                          title="Assign Concession"
                           style={{
                             padding: '6px 10px',
                             borderRadius: '6px',
@@ -441,7 +441,7 @@ export const FeeManagementPage: React.FC = () => {
                             cursor: 'pointer',
                           }}
                         >
-                          Discount
+                          Concession
                         </button>
                         <button
                           onClick={() => openPaymentHistoryModal(s)}
