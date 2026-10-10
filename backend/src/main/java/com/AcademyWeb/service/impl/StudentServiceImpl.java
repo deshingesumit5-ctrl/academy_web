@@ -68,6 +68,9 @@ public class StudentServiceImpl implements StudentService {
                 .rollNumber(entity.getRollNumber())
                 .religion(entity.getReligion())
                 .caste(entity.getCaste())
+                .category(entity.getCategory())
+                .specialReservation(entity.getSpecialReservation())
+                .needsCategoryReview(entity.getNeedsCategoryReview())
                 .kitSize(entity.getKitSize())
                 .hasSportsCertificate(entity.getHasSportsCertificate())
                 .sportsCertificateDetails(entity.getSportsCertificateDetails())
@@ -149,6 +152,9 @@ public class StudentServiceImpl implements StudentService {
                 .rollNumber(dto.getRollNumber())
                 .religion(dto.getReligion())
                 .caste(dto.getCaste())
+                .category(dto.getCategory())
+                .specialReservation(dto.getSpecialReservation() != null ? dto.getSpecialReservation() : "None")
+                .needsCategoryReview(dto.getNeedsCategoryReview() != null ? dto.getNeedsCategoryReview() : false)
                 .kitSize(dto.getKitSize())
                 .hasSportsCertificate(dto.getHasSportsCertificate())
                 .sportsCertificateDetails(dto.getSportsCertificateDetails())
@@ -216,6 +222,13 @@ public class StudentServiceImpl implements StudentService {
 
         existing.setReligion(dto.getReligion());
         existing.setCaste(dto.getCaste());
+        existing.setCategory(dto.getCategory());
+        if (dto.getSpecialReservation() != null) {
+            existing.setSpecialReservation(dto.getSpecialReservation());
+        }
+        if (dto.getNeedsCategoryReview() != null) {
+            existing.setNeedsCategoryReview(dto.getNeedsCategoryReview());
+        }
         existing.setKitSize(dto.getKitSize());
         existing.setHasSportsCertificate(dto.getHasSportsCertificate());
         existing.setSportsCertificateDetails(dto.getSportsCertificateDetails());

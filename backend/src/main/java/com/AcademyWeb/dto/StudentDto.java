@@ -56,6 +56,9 @@ public class StudentDto {
     private String rollNumber;
     private String religion;
     private String caste;
+    private String category;
+    private String specialReservation;
+    private Boolean needsCategoryReview;
     private String kitSize;
     private String hasSportsCertificate;
     private String sportsCertificateDetails;

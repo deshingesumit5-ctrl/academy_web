@@ -9,6 +9,7 @@ import { getActiveKitSizes } from '../../master/kit-size/api/kitSizeApi';
 import type { KitSizeDto } from '../../master/kit-size/api/kitSizeApi';
 import { getActiveReligions, type ReligionDto } from '../../master/religion/api/religionApi';
 import { getActiveDistricts, type DistrictDto } from '../../master/district/api/districtApi';
+import { CasteAutocomplete } from '../../../components/CasteAutocomplete';
 import {
   MOBILE_PLACEHOLDER,
   handleMobileChange,
@@ -16,6 +17,14 @@ import {
   validateRequired,
   FieldError,
 } from '../../../validations';
+
+const MAHARASHTRA_CATEGORIES = [
+  'OPEN', 'SC', 'ST', 'VJ-A', 'NT-B', 'NT-C', 'NT-D', 'SBC', 'OBC', 'SEBC', 'EWS'
+];
+
+const SPECIAL_RESERVATIONS = [
+  'None', 'NCC candidate', 'Ex-serviceman', 'Home guard', 'Project affected', 'Earthquake affected', 'Orphan'
+];
 
 export interface StudentItem {
   studentId?: number;
@@ -50,6 +59,9 @@ export interface StudentItem {
   rollNumber?: string;
   religion?: string;
   caste?: string;
+  category?: string;
+  specialReservation?: string;
+  needsCategoryReview?: boolean;
   kitSize?: string;
   hasSportsCertificate?: string;
   sportsCertificateDetails?: string;
@@ -107,6 +119,8 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
   const [gender, setGender] = useState('Male');
   const [religion, setReligion] = useState('');
   const [caste, setCaste] = useState('');
+  const [category, setCategory] = useState('');
+  const [specialReservation, setSpecialReservation] = useState('None');
   const [rollNumber, setRollNumber] = useState('');
   const [dob, setDob] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -183,6 +197,8 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
       setGender(student.gender || 'Male');
       setReligion(student.religion || '');
       setCaste(student.caste || '');
+      setCategory(student.category || '');
+      setSpecialReservation(student.specialReservation || 'None');
       setRollNumber(student.rollNumber || '');
       setDob(student.dob || '');
       setMobileNumber(student.mobileNumber || '');
@@ -290,6 +306,9 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
     const casteErr = validateRequired(caste);
     if (casteErr) errors.caste = casteErr;
 
+    const categoryErr = validateRequired(category);
+    if (categoryErr) errors.category = categoryErr;
+
     const rollErr = validateRequired(rollNumber);
     if (rollErr) {
       errors.rollNumber = rollErr;
@@ -312,6 +331,8 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
         gender,
         religion: religion || undefined,
         caste: caste || undefined,
+        category: category || undefined,
+        specialReservation: specialReservation || 'None',
         rollNumber: rollNumber.trim() || undefined,
         dob: dob || undefined,
         mobileNumber: mobileNumber.trim(),
@@ -421,20 +442,57 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
 
         <div className="form-field">
           <label>Caste <span className="required-asterisk">*</span></label>
-          <select
-            className={fieldErrors.caste ? 'input-error' : ''}
+          <CasteAutocomplete
             value={caste}
+            onChange={(val, cat) => {
+              setCaste(val);
+              if (cat) {
+                setCategory(cat);
+                if (fieldErrors.category) {
+                  setFieldErrors((prev) => ({ ...prev, category: '' }));
+                }
+              }
+              if (fieldErrors.caste) {
+                setFieldErrors((prev) => ({ ...prev, caste: '' }));
+              }
+            }}
+            castes={castes}
+            hasError={!!fieldErrors.caste}
+            placeholder="Search or enter caste..."
+          />
+          <FieldError error={fieldErrors.caste} />
+        </div>
+
+        <div className="form-field">
+          <label>Category <span className="required-asterisk">*</span></label>
+          <select
+            className={fieldErrors.category ? 'input-error' : ''}
+            value={category}
             onChange={(e) => {
-              setCaste(e.target.value);
-              if (fieldErrors.caste) setFieldErrors((prev) => ({ ...prev, caste: '' }));
+              setCategory(e.target.value);
+              if (fieldErrors.category) {
+                setFieldErrors((prev) => ({ ...prev, category: '' }));
+              }
             }}
           >
-            <option value="">-- Select Caste --</option>
-            {castes.map((c) => (
-              <option key={c.casteId} value={c.name}>{c.name}</option>
+            <option value="">-- Select Category --</option>
+            {MAHARASHTRA_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
-          <FieldError error={fieldErrors.caste} />
+          <FieldError error={fieldErrors.category} />
+        </div>
+
+        <div className="form-field">
+          <label>Special Reservation</label>
+          <select
+            value={specialReservation}
+            onChange={(e) => setSpecialReservation(e.target.value)}
+          >
+            {SPECIAL_RESERVATIONS.map((sr) => (
+              <option key={sr} value={sr}>{sr}</option>
+            ))}
+          </select>
         </div>
 
         <div className="form-field">

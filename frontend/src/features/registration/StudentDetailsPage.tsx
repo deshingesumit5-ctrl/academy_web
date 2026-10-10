@@ -97,6 +97,26 @@ export const StudentDetailsPage: React.FC = () => {
               <div><strong>Gender:</strong> {student.gender || '—'}</div>
               <div><strong>Religion:</strong> {student.religion || '—'}</div>
               <div><strong>Caste:</strong> {student.caste || '—'}</div>
+              <div>
+                <strong>Category:</strong> {student.category || '—'}
+                {student.needsCategoryReview && (
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      marginLeft: '8px',
+                      padding: '1px 6px',
+                      fontSize: '11px',
+                      borderRadius: '4px',
+                      background: '#fef3c7',
+                      color: '#b45309',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Needs Review
+                  </span>
+                )}
+              </div>
+              <div><strong>Special Reservation:</strong> {student.specialReservation || 'None'}</div>
               <div><strong>Date of Birth:</strong> {student.dob || '—'}</div>
               <div><strong>Mobile:</strong> {student.mobileNumber || '—'}</div>
               <div><strong>Email:</strong> {student.email || '—'}</div>

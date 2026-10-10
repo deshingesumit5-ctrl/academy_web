@@ -20,6 +20,15 @@ import { StudentEditModal } from './components/StudentEditModal';
 import type { StudentItem } from './components/StudentEditModal';
 import { RollNumberReassignModal } from './components/RollNumberReassignModal';
 import { QRCodeView } from '../../components/QRCodeView';
+import { CasteAutocomplete } from '../../components/CasteAutocomplete';
+
+const MAHARASHTRA_CATEGORIES = [
+  'OPEN', 'SC', 'ST', 'VJ-A', 'NT-B', 'NT-C', 'NT-D', 'SBC', 'OBC', 'SEBC', 'EWS'
+];
+
+const SPECIAL_RESERVATIONS = [
+  'None', 'NCC candidate', 'Ex-serviceman', 'Home guard', 'Project affected', 'Earthquake affected', 'Orphan'
+];
 import {
   MOBILE_PLACEHOLDER,
   handleMobileChange,
@@ -49,9 +58,10 @@ export const RegistrationPage: React.FC = () => {
 
   // List Filters State
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterCourseId, setFilterCourseId] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
   const [filterCaste, setFilterCaste] = useState('');
   const [filterKitSize, setFilterKitSize] = useState('');
-  const [filterCourseId, setFilterCourseId] = useState('');
 
   // Modals for QR Code and Roll Number Reassignment
   const [qrStudent, setQrStudent] = useState<StudentItem | null>(null);
@@ -60,11 +70,13 @@ export const RegistrationPage: React.FC = () => {
   // Form State
   const [admissionType, setAdmissionType] = useState('ACADEMY');
 
-  // Step 2 Personal Details (Ordered sequence: Student Name, Gender, Religion, Caste, Roll No, DOB, Mobile, Email, Aadhaar, Kit Size, Address, Photo)
+  // Step 2 Personal Details
   const [studentName, setStudentName] = useState('');
   const [gender, setGender] = useState('Male');
   const [religion, setReligion] = useState('');
   const [caste, setCaste] = useState('');
+  const [category, setCategory] = useState('');
+  const [specialReservation, setSpecialReservation] = useState('None');
   const [rollNumber, setRollNumber] = useState('');
   const [dob, setDob] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -213,6 +225,10 @@ export const RegistrationPage: React.FC = () => {
       if (casteErr) errors.caste = casteErr;
       else delete errors.caste;
 
+      const categoryErr = validateRequired(category);
+      if (categoryErr) errors.category = categoryErr;
+      else delete errors.category;
+
       const rollErr = validateRequired(rollNumber);
       if (rollErr) {
         errors.rollNumber = rollErr;
@@ -238,7 +254,7 @@ export const RegistrationPage: React.FC = () => {
       if (addrErr) errors.address = addrErr;
       else delete errors.address;
 
-      if (nameErr || religionErr || casteErr || errors.rollNumber || dobErr || mobErr || kitSizeErr || addrErr) {
+      if (nameErr || religionErr || casteErr || categoryErr || errors.rollNumber || dobErr || mobErr || kitSizeErr || addrErr) {
         if (firstErrorStep === null) firstErrorStep = 2;
       }
     }
@@ -303,6 +319,8 @@ export const RegistrationPage: React.FC = () => {
         gender,
         religion: religion || undefined,
         caste: caste || undefined,
+        category: category || undefined,
+        specialReservation: specialReservation || 'None',
         rollNumber: rollNumber.trim() || undefined,
         dob: dob || undefined,
         mobileNumber: mobileNumber.trim(),
@@ -368,6 +386,8 @@ export const RegistrationPage: React.FC = () => {
     setGender('Male');
     setReligion('');
     setCaste('');
+    setCategory('');
+    setSpecialReservation('None');
     setRollNumber('');
     setDob('');
     setMobileNumber('');
@@ -611,22 +631,57 @@ export const RegistrationPage: React.FC = () => {
 
               <div className="form-field">
                 <label>Caste <span className="required-asterisk">*</span></label>
-                <select
-                  className={fieldErrors.caste ? 'input-error' : ''}
+                <CasteAutocomplete
                   value={caste}
-                  onChange={(e) => {
-                    setCaste(e.target.value);
+                  onChange={(val, cat) => {
+                    setCaste(val);
+                    if (cat) {
+                      setCategory(cat);
+                      if (fieldErrors.category) {
+                        setFieldErrors((prev) => ({ ...prev, category: '' }));
+                      }
+                    }
                     if (fieldErrors.caste) {
                       setFieldErrors((prev) => ({ ...prev, caste: '' }));
                     }
                   }}
+                  castes={castes}
+                  hasError={!!fieldErrors.caste}
+                  placeholder="Search or enter caste..."
+                />
+                <FieldError error={fieldErrors.caste} />
+              </div>
+
+              <div className="form-field">
+                <label>Category <span className="required-asterisk">*</span></label>
+                <select
+                  className={fieldErrors.category ? 'input-error' : ''}
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    if (fieldErrors.category) {
+                      setFieldErrors((prev) => ({ ...prev, category: '' }));
+                    }
+                  }}
                 >
-                  <option value="">-- Select Caste --</option>
-                  {castes.map((c) => (
-                    <option key={c.casteId} value={c.name}>{c.name}</option>
+                  <option value="">-- Select Category --</option>
+                  {MAHARASHTRA_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
-                <FieldError error={fieldErrors.caste} />
+                <FieldError error={fieldErrors.category} />
+              </div>
+
+              <div className="form-field">
+                <label>Special Reservation</label>
+                <select
+                  value={specialReservation}
+                  onChange={(e) => setSpecialReservation(e.target.value)}
+                >
+                  {SPECIAL_RESERVATIONS.map((sr) => (
+                    <option key={sr} value={sr}>{sr}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-field">
@@ -1183,16 +1238,17 @@ export const RegistrationPage: React.FC = () => {
             (st.admissionNumber && st.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
             (st.rollNumber && st.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
             (st.mobileNumber && st.mobileNumber.includes(searchQuery));
-          const matchesCaste = !filterCaste || st.caste === filterCaste;
+          const matchesCategory = !filterCategory || st.category === filterCategory;
+          const matchesCaste = !filterCaste || (st.caste && st.caste.toLowerCase().includes(filterCaste.toLowerCase()));
           const matchesKitSize = !filterKitSize || st.kitSize === filterKitSize;
           const matchesCourse = !filterCourseId || String(st.courseId) === filterCourseId;
-          return matchesSearch && matchesCaste && matchesKitSize && matchesCourse;
+          return matchesSearch && matchesCategory && matchesCaste && matchesKitSize && matchesCourse;
         });
 
         return (
           <div className="card">
-            {/* Filter Section styled nicely matching other modules without (DB) labels */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
+            {/* Filter Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
               <div style={{ flex: '1 1 200px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4a5568', marginBottom: '4px' }}>Search Student</label>
                 <div style={{ position: 'relative' }}>
@@ -1208,13 +1264,24 @@ export const RegistrationPage: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4a5568', marginBottom: '4px' }}>Caste</label>
-                <select value={filterCaste} onChange={(e) => setFilterCaste(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px' }}>
-                  <option value="">Filter Caste</option>
-                  {castes.map((c) => (
-                    <option key={c.casteId} value={c.name}>{c.name}</option>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4a5568', marginBottom: '4px' }}>Category</label>
+                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px' }}>
+                  <option value="">Filter Category</option>
+                  {MAHARASHTRA_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#4a5568', marginBottom: '4px' }}>Caste</label>
+                <input
+                  type="text"
+                  placeholder="Filter Caste..."
+                  value={filterCaste}
+                  onChange={(e) => setFilterCaste(e.target.value)}
+                  style={{ width: '100%', height: '38px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px', padding: '0 8px' }}
+                />
               </div>
 
               <div>
@@ -1251,6 +1318,7 @@ export const RegistrationPage: React.FC = () => {
                       <th>Admission No.</th>
                       <th>Roll No.</th>
                       <th>Student Name</th>
+                      <th>Category</th>
                       <th>Caste</th>
                       <th>Mobile</th>
                       <th>Course / Plan</th>
@@ -1280,6 +1348,26 @@ export const RegistrationPage: React.FC = () => {
                         <td>
                           <span>{st.studentName}</span>
                           {st.email && <div style={{ fontSize: '11.5px', color: '#718096' }}>{st.email}</div>}
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: 600, color: '#2b6cb0' }}>{st.category || '—'}</span>
+                          {st.needsCategoryReview && (
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                marginLeft: '6px',
+                                padding: '1px 5px',
+                                fontSize: '10.5px',
+                                borderRadius: '4px',
+                                background: '#fef3c7',
+                                color: '#b45309',
+                                fontWeight: 600,
+                              }}
+                              title="Migrated record - sub-category needs manual review"
+                            >
+                              Review
+                            </span>
+                          )}
                         </td>
                         <td>{st.caste || '—'}</td>
                         <td>{st.mobileNumber}</td>

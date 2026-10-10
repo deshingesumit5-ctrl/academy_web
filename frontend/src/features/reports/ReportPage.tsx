@@ -12,6 +12,7 @@ export const ReportPage: React.FC = () => {
     { id: 'follow-up', title: 'Follow-up reports', desc: 'Pending, completed, missed', icon: 'ti-calendar-time' },
     { id: 'task', title: 'Task reports', desc: 'Pending, completed, overdue', icon: 'ti-checklist' },
     { id: 'student-growth', title: 'Student Growth report', desc: 'Track performance over time, compare previous vs current exam, physical & written marks', icon: 'ti-trending-up' },
+    { id: 'monthly-student-report', title: 'Monthly Student Report', desc: 'Individual student monthly class & physical test card with printable official PDF', icon: 'ti-file-certificate' },
   ];
 
   return (

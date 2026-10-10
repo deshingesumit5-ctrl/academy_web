@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface CasteRepository extends JpaRepository<Caste, Long> {
     List<Caste> findByStatus(String status);
+    List<Caste> findByStatusOrderByCasteNameAsc(String status);
 }

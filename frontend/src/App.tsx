@@ -34,6 +34,7 @@ import { WhatsappPage } from './features/whatsapp/WhatsappPage';
 import { TaskPage } from './features/tasks/TaskPage';
 import { ReportPage } from './features/reports/ReportPage';
 import { ReportDetailPage } from './features/reports/ReportDetailPage';
+import { MonthlyStudentReportPage } from './features/reports/MonthlyStudentReportPage';
 
 import { RolesPage } from './features/roles/RolesPage';
 import { RoleFormPage } from './features/roles/RoleFormPage';
@@ -70,6 +71,7 @@ const pageTitles: Record<string, string> = {
   '/reports/inquiry': 'Inquiry Report',
   '/reports/follow-up': 'Follow-up Report',
   '/reports/task': 'Task Report',
+  '/reports/monthly-student-report': 'Monthly Student Report',
   '/roles': 'Roles & Permissions',
   '/roles/create': 'Create Role',
 };
@@ -225,6 +227,7 @@ const MainLayout: React.FC = () => {
             <Route path="/whatsapp" element={<WhatsappPage />} />
             <Route path="/tasks" element={<TaskPage />} />
             <Route path="/reports" element={<ReportPage />} />
+            <Route path="/reports/monthly-student-report" element={<MonthlyStudentReportPage />} />
             <Route path="/reports/:type" element={<ReportDetailPage />} />
 
             {/* Super Admin Protected Roles Module */}

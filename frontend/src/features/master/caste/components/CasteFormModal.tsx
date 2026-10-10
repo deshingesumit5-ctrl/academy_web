@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../../../../components/Modal';
 import type { CasteDto } from '../api/casteApi';
 
+const MAHARASHTRA_CATEGORIES = [
+  'OPEN', 'SC', 'ST', 'VJ-A', 'NT-B', 'NT-C', 'NT-D', 'SBC', 'OBC', 'SEBC', 'EWS'
+];
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -10,17 +14,23 @@ interface Props {
 }
 
 export const CasteFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initialData }) => {
-  const [name, setName] = useState('');
+  const [casteName, setCasteName] = useState('');
+  const [casteNameMarathi, setCasteNameMarathi] = useState('');
+  const [categoryCode, setCategoryCode] = useState('OBC');
   const [status, setStatus] = useState('Active');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (initialData) {
-      setName(initialData.name || '');
+      setCasteName(initialData.casteName || initialData.name || '');
+      setCasteNameMarathi(initialData.casteNameMarathi || '');
+      setCategoryCode(initialData.categoryCode || 'OBC');
       setStatus(initialData.status || 'Active');
     } else {
-      setName('');
+      setCasteName('');
+      setCasteNameMarathi('');
+      setCategoryCode('OBC');
       setStatus('Active');
     }
     setError('');
@@ -28,13 +38,19 @@ export const CasteFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
+    if (!casteName.trim()) {
       setError('Caste name is required');
       return;
     }
     setSaving(true);
     try {
-      await onSave({ name: name.trim(), status });
+      await onSave({
+        name: casteName.trim(),
+        casteName: casteName.trim(),
+        casteNameMarathi: casteNameMarathi.trim() || undefined,
+        categoryCode,
+        status,
+      });
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to save caste');
@@ -48,15 +64,37 @@ export const CasteFormModal: React.FC<Props> = ({ isOpen, onClose, onSave, initi
       <form onSubmit={handleSubmit}>
         {error && <div className="error-message" style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</div>}
         <div className="form-group" style={{ marginBottom: 16 }}>
-          <label className="form-label">Caste Name <span className="required-asterisk">*</span></label>
+          <label className="form-label">Caste Name (English) <span className="required-asterisk">*</span></label>
           <input
             type="text"
             className="form-control"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. General, OBC, SC, ST, NT, VJNT"
+            value={casteName}
+            onChange={(e) => setCasteName(e.target.value)}
+            placeholder="e.g. Maratha, Kunbi, Mali, Teli, Brahmin, Dhangar"
             required
           />
+        </div>
+        <div className="form-group" style={{ marginBottom: 16 }}>
+          <label className="form-label">Caste Name (Marathi / पर्यायी नाव)</label>
+          <input
+            type="text"
+            className="form-control"
+            value={casteNameMarathi}
+            onChange={(e) => setCasteNameMarathi(e.target.value)}
+            placeholder="उदा. मराठा, कुणबी, माळी, धनगर"
+          />
+        </div>
+        <div className="form-group" style={{ marginBottom: 16 }}>
+          <label className="form-label">Default Category <span className="required-asterisk">*</span></label>
+          <select
+            className="form-control"
+            value={categoryCode}
+            onChange={(e) => setCategoryCode(e.target.value)}
+          >
+            {MAHARASHTRA_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
         </div>
         <div className="form-group" style={{ marginBottom: 20 }}>
           <label className="form-label">Status</label>

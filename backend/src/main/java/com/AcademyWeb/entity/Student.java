@@ -101,6 +101,17 @@ public class Student {
     @Column(name = "caste", length = 100)
     private String caste;
 
+    @Column(name = "category", length = 50)
+    private String category;
+
+    @Column(name = "special_reservation", length = 100)
+    @Builder.Default
+    private String specialReservation = "None";
+
+    @Column(name = "needs_category_review")
+    @Builder.Default
+    private Boolean needsCategoryReview = false;
+
     @Column(name = "kit_size", length = 50)
     private String kitSize;
 

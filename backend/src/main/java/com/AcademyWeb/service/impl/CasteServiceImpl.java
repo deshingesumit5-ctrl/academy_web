@@ -24,7 +24,7 @@ public class CasteServiceImpl implements CasteService {
 
     @Override
     public List<Caste> getActiveCastes() {
-        return casteRepository.findByStatus("Active");
+        return casteRepository.findByStatusOrderByCasteNameAsc("Active");
     }
 
     @Override
