@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -82,4 +83,7 @@ public class StudentDto {
     private java.math.BigDecimal concessionAmount;
     private String discountRemarks;
     private java.math.BigDecimal finalFee;
+
+    // Educational Documents
+    private List<StudentDocumentDto> documents;
 }

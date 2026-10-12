@@ -6,15 +6,32 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
+
 interface Student {
   studentId: number;
   studentName: string;
+  admissionNumber?: string;
+  gender?: string;
+  dob?: string;
   rollNumber?: string;
   contactNumber?: string;
   mobileNumber?: string;
   parentMobile?: string;
+  email?: string;
+  admissionType?: string;
   batchName?: string;
   courseName?: string;
+  caste?: string;
+  category?: string;
+  kitSize?: string;
+  admissionDate?: string;
+  hasSportsCertificate?: string;
+  hasNccCertificate?: string;
+  physicalTrainingSource?: string;
+  physicalTrainingSourceName?: string;
+  photoUrl?: string;
+  photo?: string;
+  [key: string]: any;
   batch?: {
     batchId?: number;
     batchName?: string;
@@ -45,6 +62,76 @@ interface PhysicalTest {
   totalMark: number | '';
 }
 
+// SVG donut (SVG is used because html2canvas can't render conic-gradient in the PDF)
+const Donut: React.FC<{
+  pct: number | null;
+  color: string;
+  size?: number;
+  stroke?: number;
+  children?: React.ReactNode;
+}> = ({ pct, color, size = 88, stroke = 10, children }) => {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const v = Math.max(0, Math.min(100, pct ?? 0));
+  return (
+    <div style={{ position: 'relative', width: size, height: size }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E2E8F0" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeDasharray={`${(v / 100) * c} ${c}`}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const InfoRow: React.FC<{ label: string; value: React.ReactNode; strong?: boolean }> = ({ label, value, strong }) => (
+  <div className="rc-row">
+    <span className="rc-lbl">{label}</span>
+    <span className="rc-colon">:</span>
+    <span className={`rc-val ${strong ? 'rc-strong' : ''}`}>{value}</span>
+  </div>
+);
+
+// Looks for the photo under the common field names a backend might use
+const PHOTO_KEYS = [
+  'photoUrl', 'photo', 'photoPath', 'photoName', 'studentPhoto', 'student_photo',
+  'profilePhoto', 'profilePicture', 'profileImage', 'imageUrl', 'image', 'avatar',
+  'picture', 'passportPhoto',
+];
+const pickPhoto = (obj: any): string => {
+  if (!obj) return '';
+  for (const k of PHOTO_KEYS) {
+    if (typeof obj[k] === 'string' && obj[k].trim()) return obj[k].trim();
+  }
+  // fallback: any field whose name looks like a photo field
+  for (const k of Object.keys(obj)) {
+    if (/photo|image|img|pic|avatar/i.test(k) && typeof obj[k] === 'string' && obj[k].trim()) {
+      return obj[k].trim();
+    }
+  }
+  return '';
+};
+
+const LEVEL_CLS: Record<string, string> = {
+  'Excellent': 'lvl-excellent',
+  'Good': 'lvl-good',
+  'Average': 'lvl-average',
+  'Needs Improvement': 'lvl-poor',
+};
+
+const PHYSICAL_MAX_MARK = 60;
+
 export const MonthlyStudentReportPage: React.FC = () => {
   const navigate = useNavigate();
   const reportRef = useRef<HTMLDivElement>(null);
@@ -58,55 +145,10 @@ export const MonthlyStudentReportPage: React.FC = () => {
   const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // Sample tests default
-  const [classTests, setClassTests] = useState<ClassTest[]>([
-    { id: '1', date: '04/09/2026', subject: 'मराठी व्याकरण (Marathi Grammar)', totalMarks: 50, obtainedMarks: 44 },
-    { id: '2', date: '11/09/2026', subject: 'सामान्य ज्ञान व चालू घडामोडी (GK)', totalMarks: 50, obtainedMarks: 42 },
-    { id: '3', date: '18/09/2026', subject: 'अंकगणित व बुद्धिमत्ता चाचणी (Maths & IQ)', totalMarks: 50, obtainedMarks: 39 },
-    { id: '4', date: '25/09/2026', subject: 'पोलीस प्रशासन व कायदे (Police Acts)', totalMarks: 50, obtainedMarks: 46 },
-    { id: '5', date: '', subject: '', totalMarks: '', obtainedMarks: '' },
-    { id: '6', date: '', subject: '', totalMarks: '', obtainedMarks: '' },
-    { id: '7', date: '', subject: '', totalMarks: '', obtainedMarks: '' },
-    { id: '8', date: '', subject: '', totalMarks: '', obtainedMarks: '' },
-  ]);
-
-  const [physicalTests, setPhysicalTests] = useState<PhysicalTest[]>([
-    {
-      id: '1',
-      date: '05/09/2026',
-      time1600: '05:08',
-      mark1600: 28,
-      time100: '11.8s',
-      mark100: 14,
-      shotPutDistance: '8.6m',
-      shotPutMark: 15,
-      totalMark: 57,
-    },
-    {
-      id: '2',
-      date: '12/09/2026',
-      time1600: '05:01',
-      mark1600: 30,
-      time100: '11.6s',
-      mark100: 15,
-      shotPutDistance: '8.9m',
-      shotPutMark: 15,
-      totalMark: 60,
-    },
-    {
-      id: '3',
-      date: '19/09/2026',
-      time1600: '04:56',
-      mark1600: 30,
-      time100: '11.5s',
-      mark100: 15,
-      shotPutDistance: '9.1m',
-      shotPutMark: 15,
-      totalMark: 60,
-    },
-    { id: '4', date: '', time1600: '', mark1600: '', time100: '', mark100: '', shotPutDistance: '', shotPutMark: '', totalMark: '' },
-    { id: '5', date: '', time1600: '', mark1600: '', time100: '', mark100: '', shotPutDistance: '', shotPutMark: '', totalMark: '' },
-  ]);
+  // Real backend test lists; empty when no data recorded
+  const [classTests, setClassTests] = useState<ClassTest[]>([]);
+  const [physicalTests, setPhysicalTests] = useState<PhysicalTest[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStudents();
@@ -126,47 +168,73 @@ export const MonthlyStudentReportPage: React.FC = () => {
         setStudents(list);
         setSelectedStudentId(list[0].studentId);
       } else {
-        // Fallback demo student
-        const demo: Student = {
-          studentId: 51,
-          studentName: 'Amar Patil',
-          rollNumber: '51',
-          mobileNumber: '9872193113',
-          contactNumber: '9872193113',
-          batchName: 'Police Bharti Morning',
-          batch: {
-            batchId: 1,
-            batchName: 'Police Bharti Morning',
-            batchTiming: '06:00 AM - 08:30 AM',
-          },
-          course: {
-            courseName: 'Maharashtra Police Bharti',
-          },
-        };
-        setStudents([demo]);
-        setSelectedStudentId(51);
+        setStudents([]);
+        setSelectedStudentId('');
       }
     } catch {
-      const demo: Student = {
-        studentId: 51,
-        studentName: 'Amar Patil',
-        rollNumber: '51',
-        mobileNumber: '9872193113',
-        contactNumber: '9872193113',
-        batchName: 'Police Bharti Morning',
-        batch: {
-          batchId: 1,
-          batchName: 'Police Bharti Morning',
-          batchTiming: '06:00 AM - 08:30 AM',
-        },
-        course: {
-          courseName: 'Maharashtra Police Bharti',
-        },
-      };
-      setStudents([demo]);
-      setSelectedStudentId(51);
+      setStudents([]);
+      setSelectedStudentId('');
     }
   };
+
+  const currentStudent: Student | null = useMemo(() => {
+    if (!students || students.length === 0) return null;
+    return students.find((s) => s.studentId === Number(selectedStudentId)) || students[0] || null;
+  }, [students, selectedStudentId]);
+
+  // Load student report data whenever student or month changes
+  useEffect(() => {
+    if (!currentStudent?.studentId) {
+      setClassTests([]);
+      setPhysicalTests([]);
+      setAttendanceRecords([]);
+      return;
+    }
+
+    const loadStudentData = async () => {
+      try {
+        // Parse month & year from selectedMonth
+        const parts = selectedMonth.split(' ');
+        const monthNames = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        const monthNum = parts[0] ? monthNames.indexOf(parts[0]) + 1 : 9;
+        const yearNum = parts[1] ? parseInt(parts[1], 10) : 2026;
+
+        // Fetch attendance for the student
+        try {
+          const attRes = await axiosInstance.get(`/attendance/student/${currentStudent.studentId}?year=${yearNum}&month=${monthNum}`);
+          const attList = attRes.data?.data || [];
+          setAttendanceRecords(attList);
+        } catch {
+          setAttendanceRecords([]);
+        }
+
+        // Fetch class tests
+        try {
+          const ctRes = await axiosInstance.get(`/reports/student-tests?studentId=${currentStudent.studentId}&month=${encodeURIComponent(selectedMonth)}`);
+          const ctList = ctRes.data?.data || [];
+          setClassTests(ctList);
+        } catch {
+          setClassTests([]);
+        }
+
+        // Fetch physical tests
+        try {
+          const ptRes = await axiosInstance.get(`/reports/student-physical-tests?studentId=${currentStudent.studentId}&month=${encodeURIComponent(selectedMonth)}`);
+          const ptList = ptRes.data?.data || [];
+          setPhysicalTests(ptList);
+        } catch {
+          setPhysicalTests([]);
+        }
+      } catch (err) {
+        console.error('Error loading student report card data:', err);
+      }
+    };
+
+    loadStudentData();
+  }, [currentStudent?.studentId, selectedMonth]);
 
   const filteredStudents = useMemo(() => {
     if (!studentSearchTerm.trim()) return students;
@@ -180,26 +248,8 @@ export const MonthlyStudentReportPage: React.FC = () => {
     });
   }, [students, studentSearchTerm]);
 
-  const currentStudent: Student = useMemo(() => {
-    return (
-      students.find((s) => s.studentId === Number(selectedStudentId)) ||
-      students[0] || {
-        studentId: 51,
-        studentName: 'Amar Patil',
-        rollNumber: '51',
-        mobileNumber: '9872193113',
-        contactNumber: '9872193113',
-        batchName: 'Police Bharti Morning',
-        batch: {
-          batchName: 'Police Bharti Morning',
-          batchTiming: '06:00 AM - 08:30 AM',
-        },
-      }
-    );
-  }, [students, selectedStudentId]);
-
-  // Mobile number auto-filled directly from student registration form data
   const currentStudentMobile = useMemo(() => {
+    if (!currentStudent) return '—';
     return currentStudent.mobileNumber || currentStudent.contactNumber || currentStudent.parentMobile || '—';
   }, [currentStudent]);
 
@@ -223,8 +273,199 @@ export const MonthlyStudentReportPage: React.FC = () => {
       const pct = (classTestObtainedMarks / classTestTotalMarks) * 100;
       return pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1);
     }
-    return '0';
+    return null;
   }, [classTestTotalMarks, classTestObtainedMarks]);
+
+  // Manual attendance (overrides backend when Total Working Days is filled)
+  const [attTotal, setAttTotal] = useState<number | ''>('');
+  const [attPresent, setAttPresent] = useState<number | ''>('');
+  const attKey = `rc-att:${currentStudent?.studentId}:${selectedMonth}`;
+
+  useEffect(() => {
+    try {
+      const d = JSON.parse(localStorage.getItem(attKey) || 'null');
+      setAttTotal(d?.total ?? '');
+      setAttPresent(d?.present ?? '');
+    } catch {
+      setAttTotal('');
+      setAttPresent('');
+    }
+  }, [attKey]);
+
+  const saveAtt = (total: number | '', present: number | '') => {
+    setAttTotal(total);
+    setAttPresent(present);
+    try {
+      if (total === '' && present === '') localStorage.removeItem(attKey);
+      else localStorage.setItem(attKey, JSON.stringify({ total, present }));
+    } catch {}
+  };
+
+  const attAbsent = attTotal === '' ? '' : Math.max(0, Number(attTotal) - (Number(attPresent) || 0));
+  const attPctManual =
+    attTotal !== '' && Number(attTotal) > 0
+      ? (((Number(attPresent) || 0) / Number(attTotal)) * 100).toFixed(1)
+      : '0.0';
+
+  // Attendance statistics (manual entry wins, else backend records)
+  const attendanceStats = useMemo(() => {
+    if (attTotal !== '' && Number(attTotal) > 0) {
+      const total = Number(attTotal);
+      const present = Math.min(Number(attPresent) || 0, total);
+      return { present, total, pct: ((present / total) * 100).toFixed(1) };
+    }
+    if (!attendanceRecords || attendanceRecords.length === 0) return null;
+    const present = attendanceRecords.filter((a) => a.status === 'PRESENT').length;
+    const total = attendanceRecords.length;
+    const pct = total > 0 ? ((present / total) * 100).toFixed(1) : '0';
+    return { present, total, pct };
+  }, [attendanceRecords, attTotal, attPresent]);
+
+  // Physical test percentage
+  const physicalTestTotalMarks = useMemo(() => {
+    return physicalTests.reduce((sum, item) => {
+      const val = typeof item.totalMark === 'number' ? item.totalMark : parseFloat(String(item.totalMark));
+      return sum + (!isNaN(val) && val > 0 ? val : 0);
+    }, 0);
+  }, [physicalTests]);
+
+  // ---------- Photo: show only if the student has one ----------
+  const [photoMode, setPhotoMode] = useState<'cors' | 'plain' | 'failed'>('cors');
+  const [detailPhoto, setDetailPhoto] = useState<{ id: number; value: string } | null>(null);
+
+  // If the /students list has no photo, try the single-student endpoint
+  useEffect(() => {
+    if (!currentStudent?.studentId || pickPhoto(currentStudent)) return;
+    let cancelled = false;
+    axiosInstance
+      .get(`/students/${currentStudent.studentId}`)
+      .then((r) => {
+        const p = pickPhoto(r.data?.data || r.data);
+        if (!cancelled && p) setDetailPhoto({ id: currentStudent.studentId, value: p });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [currentStudent?.studentId]);
+
+  const studentPhotoSrc = useMemo(() => {
+    if (!currentStudent) return null;
+    const raw =
+      pickPhoto(currentStudent) ||
+      (detailPhoto?.id === currentStudent.studentId ? detailPhoto.value : '');
+    if (!raw) return null;
+    if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
+    // bare base64 string
+    if (raw.length > 200 && /^[A-Za-z0-9+/=\s]+$/.test(raw)) return `data:image/jpeg;base64,${raw}`;
+    const base = String(axiosInstance.defaults.baseURL || '').replace(/\/api\/?$/, '').replace(/\/$/, '');
+    // bare filename -> assume /uploads/ folder (change if your folder differs)
+    if (!raw.includes('/')) return `${base}/uploads/${raw}`;
+    return `${base}${raw.startsWith('/') ? '' : '/'}${raw}`;
+  }, [currentStudent, detailPhoto]);
+
+  useEffect(() => { setPhotoMode('cors'); }, [studentPhotoSrc]);
+
+  // TEMP debug: remove once the photo shows
+  useEffect(() => { console.log('Report student:', currentStudent, '| photo src:', studentPhotoSrc); }, [currentStudent, studentPhotoSrc]);
+
+  // ---------- Physical % ----------
+  const physicalTestPercentage = useMemo(() => {
+    const totals = physicalTests.map((p) => Number(p.totalMark) || 0).filter((v) => v > 0);
+    if (!totals.length) return null;
+    const avg = totals.reduce((a, b) => a + b, 0) / totals.length;
+    return Math.min(100, (avg / PHYSICAL_MAX_MARK) * 100);
+  }, [physicalTests]);
+
+  // ---------- Overall growth: class test % of last 3 months ----------
+  const [growthData, setGrowthData] = useState<{ label: string; pct: number | null }[]>([]);
+  useEffect(() => {
+    if (!currentStudent?.studentId) {
+      setGrowthData([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const [mName, yStr] = selectedMonth.split(' ');
+      const m = names.indexOf(mName);
+      const y = parseInt(yStr, 10);
+      const months: { full: string; short: string }[] = [];
+      for (let i = 2; i >= 0; i--) {
+        let mm = m - i;
+        let yy = y;
+        while (mm < 0) { mm += 12; yy -= 1; }
+        months.push({ full: `${names[mm]} ${yy}`, short: `${names[mm].slice(0, 3)} ${yy}` });
+      }
+      const result = await Promise.all(
+        months.map(async (mo) => {
+          try {
+            const r = await axiosInstance.get(
+              `/reports/student-tests?studentId=${currentStudent.studentId}&month=${encodeURIComponent(mo.full)}`
+            );
+            const list: any[] = r.data?.data || [];
+            let t = 0, o = 0;
+            list.forEach((x) => {
+              const tv = parseFloat(String(x.totalMarks));
+              const ov = parseFloat(String(x.obtainedMarks));
+              if (!isNaN(tv) && tv > 0) t += tv;
+              if (!isNaN(ov) && ov > 0) o += ov;
+            });
+            return { label: mo.short, pct: t > 0 ? Math.round((o / t) * 1000) / 10 : null };
+          } catch {
+            return { label: mo.short, pct: null };
+          }
+        })
+      );
+      if (!cancelled) setGrowthData(result);
+    })();
+    return () => { cancelled = true; };
+  }, [currentStudent?.studentId, selectedMonth]);
+
+  // ---------- Performance level + auto remark ----------
+  const performanceLevel = useMemo(() => {
+    const vals = [
+      classTestPercentage !== null ? parseFloat(classTestPercentage) : null,
+      physicalTestPercentage,
+      attendanceStats ? parseFloat(attendanceStats.pct) : null,
+    ].filter((v): v is number => v !== null);
+    if (!vals.length) return null;
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    if (avg >= 85) return { label: 'Excellent', cls: 'lvl-excellent', remark: 'Outstanding performance in all areas. Keep up the excellent work.' };
+    if (avg >= 70) return { label: 'Good', cls: 'lvl-good', remark: 'Regular in class, good performance in academic tests and physical tests. Showing steady improvement. Keep it up.' };
+    if (avg >= 50) return { label: 'Average', cls: 'lvl-average', remark: 'Performance is average. More regularity and practice are needed.' };
+    return { label: 'Needs Improvement', cls: 'lvl-poor', remark: 'Needs to improve attendance and test preparation. Extra effort is required.' };
+  }, [classTestPercentage, physicalTestPercentage, attendanceStats]);
+  // ---------- Manual remark + level (falls back to auto if left blank) ----------
+  const [remarkText, setRemarkText] = useState('');
+  const [levelChoice, setLevelChoice] = useState('');
+  const remarkKey = `rc-remark:${currentStudent?.studentId}:${selectedMonth}`;
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(remarkKey);
+      const d = raw ? JSON.parse(raw) : null;
+      setRemarkText(d?.remark || '');
+      setLevelChoice(d?.level || '');
+    } catch {
+      setRemarkText('');
+      setLevelChoice('');
+    }
+  }, [remarkKey]);
+
+  const saveRemark = (remark: string, level: string) => {
+    setRemarkText(remark);
+    setLevelChoice(level);
+    try {
+      if (!remark && !level) localStorage.removeItem(remarkKey);
+      else localStorage.setItem(remarkKey, JSON.stringify({ remark, level }));
+    } catch {}
+  };
+
+  const shownLevel = useMemo(() => {
+    const label = levelChoice || performanceLevel?.label || '';
+    return label ? { label, cls: LEVEL_CLS[label] || 'lvl-good' } : null;
+  }, [levelChoice, performanceLevel]);
+
+  const shownRemark = remarkText.trim() || performanceLevel?.remark || '';
 
   const handleDownloadPdf = async () => {
     if (isGeneratingPdf) return;
@@ -242,7 +483,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
         throw new Error('Report element not found');
       }
 
-      // Small delay to ensure any fonts and styles are fully rendered
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const canvas = await html2canvas(element, {
@@ -261,8 +501,8 @@ export const MonthlyStudentReportPage: React.FC = () => {
         format: 'a4',
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210 mm
-      const pdfHeight = pdf.internal.pageSize.getHeight(); // 297 mm
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
 
       let renderWidth = pdfWidth;
       let renderHeight = (canvas.height * pdfWidth) / canvas.width;
@@ -277,9 +517,9 @@ export const MonthlyStudentReportPage: React.FC = () => {
 
       pdf.addImage(imgData, 'JPEG', xOffset, yOffset, renderWidth, renderHeight, undefined, 'FAST');
 
-      const safeStudentName = (currentStudent.studentName || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeStudentName = (currentStudent?.studentName || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
       const safeMonth = selectedMonth.replace(/[^a-zA-Z0-9_-]/g, '_');
-      pdf.save(`Monthly_Report_${safeStudentName}_${safeMonth}.pdf`);
+      pdf.save(`Report_Card_${safeStudentName}_${safeMonth}.pdf`);
     } catch (err) {
       console.error('Failed to generate PDF:', err);
     } finally {
@@ -290,13 +530,11 @@ export const MonthlyStudentReportPage: React.FC = () => {
     }
   };
 
-  // Generate Excel Client-Side using SheetJS (XLSX) matching other reports
   const handleDownloadExcel = () => {
-    if (isGeneratingExcel) return;
+    if (isGeneratingExcel || !currentStudent) return;
     setIsGeneratingExcel(true);
 
     try {
-      // Sheet 1: Class Test Details & Automatic Totals
       const classTestHeaders = ['Sr No', 'Date', 'Test / Subject', 'Total Mark', 'Obtained Mark'];
       const classTestRows: any[][] = classTests
         .filter((t) => t.date || t.subject || t.totalMarks !== '' || t.obtainedMarks !== '')
@@ -308,28 +546,15 @@ export const MonthlyStudentReportPage: React.FC = () => {
           t.obtainedMarks !== '' ? t.obtainedMarks : '',
         ]);
 
-      // Add Total Marks Addition Row
-      classTestRows.push([
-        '',
-        'TOTAL',
-        'Total Marks & Obtained Marks Addition',
-        classTestTotalMarks,
-        classTestObtainedMarks,
-      ]);
-
-      // Add Percentage Row
-      classTestRows.push([
-        '',
-        'PERCENTAGE',
-        'Calculated Percentage',
-        '',
-        `${classTestPercentage}%`,
-      ]);
+      if (classTestTotalMarks > 0) {
+        classTestRows.push(['', 'TOTAL', 'Total Marks Addition', classTestTotalMarks, classTestObtainedMarks]);
+        classTestRows.push(['', 'PERCENTAGE', 'Calculated Percentage', '', `${classTestPercentage}%`]);
+      }
 
       const classTestSheetData = [
-        ['AJINKYA FOUNDATION - MONTHLY STUDENT REPORT'],
+        ['AJINKYA FOUNDATION - STUDENT REPORT CARD'],
         [`Student Name: ${currentStudent.studentName}`, `Mobile: ${currentStudentMobile}`, `Roll No: ${currentStudent.rollNumber || currentStudent.studentId || ''}`],
-        [`Batch: ${currentStudent.batch?.batchName || currentStudent.batchName || 'Police Bharti Morning'}`, `Month: ${selectedMonth}`],
+        [`Batch: ${currentStudent.batch?.batchName || currentStudent.batchName || '—'}`, `Month: ${selectedMonth}`],
         [],
         classTestHeaders,
         ...classTestRows,
@@ -337,7 +562,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
 
       const wsClassTest = XLSX.utils.aoa_to_sheet(classTestSheetData);
 
-      // Sheet 2: Physical Trials
       const physicalHeaders = ['Sr No', 'Date', '1600M Time', '1600M Mark', '100M Time', '100M Mark', 'Shot Put Dist', 'Shot Put Mark', 'Total Mark'];
       const physicalRows = physicalTests
         .filter((p) => p.date || p.time1600 || p.mark1600 !== '' || p.totalMark !== '')
@@ -369,7 +593,7 @@ export const MonthlyStudentReportPage: React.FC = () => {
 
       const safeStudentName = (currentStudent.studentName || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
       const safeMonth = selectedMonth.replace(/[^a-zA-Z0-9_-]/g, '_');
-      XLSX.writeFile(workbook, `Monthly_Report_${safeStudentName}_${safeMonth}.xlsx`);
+      XLSX.writeFile(workbook, `Report_Card_${safeStudentName}_${safeMonth}.xlsx`);
     } catch (err) {
       console.error('Failed to generate Excel file:', err);
     } finally {
@@ -377,7 +601,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
     }
   };
 
-  // Entry updates
   const updateClassTest = (index: number, field: keyof ClassTest, val: any) => {
     const updated = [...classTests];
     updated[index] = { ...updated[index], [field]: val };
@@ -387,8 +610,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
   const updatePhysicalTest = (index: number, field: keyof PhysicalTest, val: any) => {
     const updated = [...physicalTests];
     updated[index] = { ...updated[index], [field]: val };
-
-    // Auto-sum total marks if numbers
     const m1600 = Number(field === 'mark1600' ? val : updated[index].mark1600) || 0;
     const m100 = Number(field === 'mark100' ? val : updated[index].mark100) || 0;
     const mShot = Number(field === 'shotPutMark' ? val : updated[index].shotPutMark) || 0;
@@ -407,34 +628,39 @@ export const MonthlyStudentReportPage: React.FC = () => {
     setIsBlankTemplate(false);
   };
 
+  // Helper for physical training display
+  const physicalTrainingDisplay = useMemo(() => {
+    if (!currentStudent) return '—';
+    if (currentStudent.admissionType === 'LIBRARY') return 'Not Applicable (Library)';
+    const src = currentStudent.physicalTrainingSource;
+    if (!src) return '—';
+    if (src === 'Other') {
+      return currentStudent.physicalTrainingSourceName || 'Other';
+    }
+    return src;
+  }, [currentStudent]);
+
   return (
     <div className="monthly-report-page">
-      {/* Top Header Row with Navigation & Download Buttons (Matches other reports) */}
+      {/* Top Header Row with Navigation & Download Buttons */}
       <div className="no-print report-top-nav-bar">
         <div className="nav-title-group">
-          <button
-            className="btn back-nav-btn"
-            onClick={() => navigate('/reports')}
-          >
+          <button className="btn back-nav-btn" onClick={() => navigate('/reports')}>
             <i className="ti ti-arrow-left"></i> Back to Reports
           </button>
           <div>
-            <h2 className="report-main-title">
-              Monthly Student Report
-            </h2>
+            <h2 className="report-main-title">Student Report Card</h2>
             <span className="report-main-desc">
-              Individual student monthly class & physical test card with official printable report
+              Comprehensive student report card with academic, physical tests, attendance, and growth records
             </span>
           </div>
         </div>
 
-        {/* Right side download buttons: Excel & PDF (matches 2nd image) */}
         <div className="report-downloads-group">
-          {/* Download Excel Button */}
           <button
             className="btn excel-download-btn"
             onClick={handleDownloadExcel}
-            disabled={isGeneratingExcel}
+            disabled={isGeneratingExcel || !currentStudent}
           >
             {isGeneratingExcel ? (
               <>
@@ -447,11 +673,10 @@ export const MonthlyStudentReportPage: React.FC = () => {
             )}
           </button>
 
-          {/* Download PDF Button */}
           <button
             className="btn btn-primary pdf-download-btn"
             onClick={handleDownloadPdf}
-            disabled={isGeneratingPdf}
+            disabled={isGeneratingPdf || !currentStudent}
           >
             {isGeneratingPdf ? (
               <>
@@ -459,7 +684,7 @@ export const MonthlyStudentReportPage: React.FC = () => {
               </>
             ) : (
               <>
-                <i className="ti ti-file-download"></i> Download PDF
+                <i className="ti ti-file-download"></i> Print / Download PDF
               </>
             )}
           </button>
@@ -468,7 +693,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
 
       {/* View Mode & Template Controls Bar */}
       <div className="no-print report-sub-bar">
-        {/* Tabs for Mode Switch */}
         <div className="report-view-tabs">
           <button
             className={`view-tab-btn ${activeTab === 'preview' ? 'active' : ''}`}
@@ -484,7 +708,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Blank Paper Toggle */}
         <button
           className={`btn template-toggle-btn ${isBlankTemplate ? 'active-blank' : ''}`}
           onClick={() => setIsBlankTemplate(!isBlankTemplate)}
@@ -494,10 +717,9 @@ export const MonthlyStudentReportPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Filter Controls Card (Matches other reports) */}
+      {/* Filter Controls Card */}
       <div className="no-print card card-pad report-filter-card">
         <div className="form-grid report-filter-grid">
-          {/* Select Student Dropdown */}
           <div className="form-field">
             <label>Select Student</label>
             <select
@@ -505,6 +727,7 @@ export const MonthlyStudentReportPage: React.FC = () => {
               onChange={(e) => setSelectedStudentId(Number(e.target.value))}
               className="form-control"
             >
+              {filteredStudents.length === 0 && <option value="">No students available</option>}
               {filteredStudents.map((s) => {
                 const roll = s.rollNumber ? `[Roll: ${s.rollNumber}] ` : '';
                 const batch = s.batch?.batchName || s.batchName ? ` (${s.batch?.batchName || s.batchName})` : '';
@@ -517,7 +740,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Student Search Box */}
           <div className="form-field">
             <label>Search Student / Batch</label>
             <input
@@ -529,7 +751,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
             />
           </div>
 
-          {/* Select Report Month */}
           <div className="form-field">
             <label>Report Month</label>
             <select
@@ -545,7 +766,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Reset Filters */}
           <div className="form-field filter-reset-field">
             <button className="btn reset-filter-btn" onClick={resetFilters} type="button">
               <i className="ti ti-rotate"></i> Reset Filters
@@ -554,229 +774,375 @@ export const MonthlyStudentReportPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Active Student Info & Live Score Summary Strip */}
-      <div className="no-print student-summary-strip">
-        <div className="summary-strip-left">
-          <span className="summary-pill student-name-pill">
-            <i className="ti ti-user"></i> {currentStudent.studentName}
-          </span>
-          <span className="summary-pill">
-            <i className="ti ti-id"></i> Roll: <strong>{currentStudent.rollNumber || currentStudent.studentId || '—'}</strong>
-          </span>
-          <span className="summary-pill mobile-pill">
-            <i className="ti ti-phone"></i> Mobile: <strong>{currentStudentMobile}</strong>
-          </span>
-          <span className="summary-pill batch-pill">
-            <i className="ti ti-clock"></i> {currentStudent.batch?.batchName || currentStudent.batchName || 'Police Bharti Morning'}
-          </span>
-        </div>
+      {/* Active Student Info Strip */}
+      {currentStudent && (
+        <div className="no-print student-summary-strip">
+          <div className="summary-strip-left">
+            <span className="summary-pill student-name-pill">
+              <i className="ti ti-user"></i> {currentStudent.studentName}
+            </span>
+            <span className="summary-pill">
+              <i className="ti ti-id"></i> Roll: <strong>{currentStudent.rollNumber || currentStudent.studentId || '—'}</strong>
+            </span>
+            <span className="summary-pill mobile-pill">
+              <i className="ti ti-phone"></i> Mobile: <strong>{currentStudentMobile}</strong>
+            </span>
+            <span className="summary-pill batch-pill">
+              <i className="ti ti-clock"></i> {currentStudent.batch?.batchName || currentStudent.batchName || '—'}
+            </span>
+          </div>
 
-        <div className="summary-strip-right">
-          <span className="summary-badge total-marks-badge">
-            Total Marks: <strong>{classTestTotalMarks}</strong>
-          </span>
-          <span className="summary-badge obtained-marks-badge">
-            Obtained Marks: <strong>{classTestObtainedMarks}</strong>
-          </span>
-          <span className="summary-badge score-percent-badge">
-            Score: <strong>{classTestPercentage}%</strong>
-          </span>
+          <div className="summary-strip-right">
+            {classTestPercentage !== null ? (
+              <span className="summary-badge score-percent-badge">
+                Test Score: <strong>{classTestPercentage}%</strong>
+              </span>
+            ) : (
+              <span className="summary-badge" style={{ background: '#f1f5f9', color: '#64748b' }}>
+                No Tests Recorded
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* TAB 1: REPORT DOCUMENT PREVIEW (Screen & Print) */}
+      {/* TAB 1: REPORT CARD PREVIEW (Screen & Print) */}
       {activeTab === 'preview' && (
         <div className="report-sheet-container">
-          <div className="report-paper-sheet" id="printable-monthly-report" ref={reportRef}>
-            {/* Outer Decorative Double Border */}
-            <div className="report-border-frame">
-              {/* Top Foundation Banner Header Box */}
-              <div className="foundation-banner-box">
-                <div className="banner-logo-wrap">
-                  <img src="/logo.png" alt="Ajinkya Foundation Logo" className="foundation-logo" />
-                </div>
-                <div className="banner-content">
-                  <h1 className="foundation-title">अजिंक्य फाऊंडेशन कोल्हापूर</h1>
-                  {/* Updated Address: नूतन मराठी शाळा */}
-                  <p className="foundation-address">
-                    पत्ता - हिंदू एकता हॉल, नूतन मराठी शाळा, मिरजकर तिकटी, मंगळवार पेठ, कोल्हापूर
-                  </p>
-                  <p className="foundation-subtitle">
-                    पोलीस भरती, MPSC, SSC, आर्मी, सरळसेवा मार्गदर्शन केंद्र
-                  </p>
-                  {/* Updated Sir Name: अजिंक्य आपके सर */}
-                  <p className="foundation-contact">अजिंक्य आपके सर : 7972193113</p>
-                </div>
-              </div>
-
-              {/* Title Underlined */}
-              <div className="report-title-section">
-                <h2 className="report-main-heading">MONTHLY STUDENT REPORT</h2>
-              </div>
-
-              {/* Student Metadata Info Grid - Auto-filled from registration data */}
-              <div className="student-info-grid">
-                <div className="info-col">
-                  <div className="info-row">
-                    <span className="info-label">STUDENT NAME :</span>
-                    <span className="info-value">{currentStudent.studentName || '—'}</span>
-                  </div>
-                  <div className="info-row">
-                    <span className="info-label">MOBILE NO :</span>
-                    <span className="info-value font-mono">{currentStudentMobile}</span>
-                  </div>
-                  <div className="info-row">
-                    <span className="info-label">ROLL NO :</span>
-                    <span className="info-value">{currentStudent.rollNumber || currentStudent.studentId || '—'}</span>
-                  </div>
-                </div>
-
-                <div className="info-col">
-                  <div className="info-row">
-                    <span className="info-label">BATCH NAME :</span>
-                    <span className="info-value">{currentStudent.batch?.batchName || currentStudent.batchName || 'Police Bharti Morning'}</span>
-                  </div>
-                  <div className="info-row">
-                    <span className="info-label">BATCH TIME :</span>
-                    <span className="info-value">{currentStudent.batch?.batchTiming || '06:00 AM - 08:30 AM'}</span>
-                  </div>
-                  <div className="info-row">
-                    <span className="info-label">MONTH :</span>
-                    <span className="info-value">{selectedMonth}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="report-divider"></div>
-
-              {/* SECTION 1: CLASS TEST */}
-              <div className="report-section">
-                <div className="section-title-wrap">
-                  <h3 className="section-title">CLASS TEST :</h3>
-                  {!isBlankTemplate && classTestTotalMarks > 0 && (
-                    <div className="section-title-score-info">
-                      <span>Total: <strong>{classTestTotalMarks}</strong></span>
-                      <span style={{ margin: '0 4px' }}>|</span>
-                      <span>Obtained: <strong>{classTestObtainedMarks}</strong></span>
+          {!currentStudent ? (
+            <div style={{ padding: '60px 20px', textAlign: 'center', background: '#FFFFFF', borderRadius: 8, width: 820, border: '1px solid #CBD5E1' }}>
+              <i className="ti ti-user-x" style={{ fontSize: 48, color: '#94A3B8', display: 'block', marginBottom: 12 }}></i>
+              <h3 style={{ margin: 0, color: '#1E293B', fontSize: 18 }}>No Student Selected</h3>
+              <p style={{ color: '#64748B', fontSize: 13, marginTop: 4 }}>
+                Please register a student or adjust your search filters to display the report card.
+              </p>
+            </div>
+          ) : (
+                    <div className="report-paper-sheet" id="printable-monthly-report" ref={reportRef}>
+              <div className="report-border-frame">
+                {/* HEADER */}
+                <div className="rc-header">
+                  <div className="rc-header-left">
+                    <img src="/logo.png" alt="Ajinkya Foundation Logo" className="rc-logo" />
+                    <div>
+                      <h1 className="rc-title">अजिंक्य फाऊंडेशन कोल्हापूर</h1>
+                      <p className="rc-tagline">पोलीस भरती | MPSC | SSC | आर्मी | सरळसेवा मार्गदर्शन केंद्र</p>
+                      <p className="rc-address">पत्ता - हिंदू एकता हॉल, नूतन मराठी शाळा, मिरजकर तिकटी, मंगळवार पेठ, कोल्हापूर | 7972193113</p>
                     </div>
+                  </div>
+                  <div className="rc-header-badge">
+                    <div className="rc-badge-title">STUDENT<br />REPORT CARD</div>
+                    <div className="rc-badge-month">{selectedMonth}</div>
+                  </div>
+                </div>
+
+                {/* PROFILE (photo only if student has one) */}
+                <div className="rc-profile">
+                        <div className="rc-photo">
+                    {studentPhotoSrc && photoMode !== 'failed' && (
+                      <img
+                        key={`${studentPhotoSrc}-${photoMode}`}
+                        src={studentPhotoSrc}
+                        alt={currentStudent.studentName}
+                        {...(photoMode === 'cors' ? { crossOrigin: 'anonymous' as const } : {})}
+                        onError={() => setPhotoMode(photoMode === 'cors' ? 'plain' : 'failed')}
+                      />
+                    )}
+                  </div>
+                  <div className="rc-profile-col">
+                    <InfoRow label="Student Name" value={currentStudent.studentName} strong />
+                    <InfoRow label="Roll No." value={currentStudent.rollNumber || '—'} strong />
+                    <InfoRow
+                      label="Course / Batch"
+                      value={currentStudent.course?.courseName || currentStudent.courseName || currentStudent.batch?.batchName || currentStudent.batchName || '—'}
+                    />
+                    <InfoRow label="Batch Time" value={currentStudent.batch?.batchTiming || '—'} />
+                    <InfoRow label="Mobile No." value={currentStudentMobile} />
+                  </div>
+                  <div className="rc-profile-col rc-profile-right">
+                    <InfoRow
+                      label="Admission Type"
+                      value={
+                        currentStudent.admissionType === 'ACADEMY' ? 'Academy'
+                        : currentStudent.admissionType === 'LIBRARY' ? 'Library'
+                        : currentStudent.admissionType === 'ACADEMY_LIBRARY' ? 'Academy + Library'
+                        : currentStudent.admissionType || '—'
+                      }
+                    />
+                    <InfoRow label="Caste" value={currentStudent.caste || currentStudent.category || '—'} />
+                    <InfoRow label="Sports Certificate" value={currentStudent.hasSportsCertificate || 'No'} />
+                    <InfoRow label="NCC – C Certificate" value={currentStudent.hasNccCertificate || 'No'} />
+                    <InfoRow label="Physical Training" value={physicalTrainingDisplay} />
+                    <InfoRow label="Kit Size" value={currentStudent.kitSize || '—'} />
+                    <InfoRow label="Join Date" value={currentStudent.admissionDate || '—'} />
+                  </div>
+                </div>
+
+                {/* ATTENDANCE */}
+                <div className="rc-card rc-blue">
+                  <div className="rc-card-head"><i className="ti ti-calendar-stats"></i> Attendance – {selectedMonth}</div>
+                  {attendanceStats ? (
+                    <div className="rc-att-body">
+                      <div className="rc-tile rc-tile-blue"><span>Total<br />Working Days</span><b>{attendanceStats.total}</b></div>
+                      <div className="rc-tile rc-tile-green"><span>Present</span><b>{attendanceStats.present}</b></div>
+                      <div className="rc-tile rc-tile-red"><span>Absent</span><b>{attendanceStats.total - attendanceStats.present}</b></div>
+                      <Donut pct={parseFloat(attendanceStats.pct)} color="#5B8DCB" size={96} stroke={12}>
+                        <b style={{ fontSize: 16 }}>{attendanceStats.pct}%</b>
+                        <span style={{ fontSize: 10 }}>Attendance</span>
+                      </Donut>
+                    </div>
+                  ) : (
+                    <div className="rc-empty">No attendance data available</div>
                   )}
                 </div>
-                <table className="report-table class-test-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '15%' }}>DATE</th>
-                      <th style={{ width: '45%' }}>TEST / SUBJECT</th>
-                      <th style={{ width: '20%' }}>TOTAL MARK</th>
-                      <th style={{ width: '20%' }}>OBTAINED MARK</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(isBlankTemplate ? Array(8).fill(null) : classTests).map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="center-cell">{!isBlankTemplate && item ? item.date : ''}</td>
-                        <td>{!isBlankTemplate && item ? item.subject : ''}</td>
-                        <td className="center-cell">{!isBlankTemplate && item ? item.totalMarks : ''}</td>
-                        <td className="center-cell bold-cell">{!isBlankTemplate && item ? item.obtainedMarks : ''}</td>
-                      </tr>
-                    ))}
-                    {/* AUTOMATIC MARKS ADDITION ROW */}
-                    <tr className="class-test-total-row">
-                      <td colSpan={2} className="total-label-cell">
-                        TOTAL MARKS :
-                      </td>
-                      <td className="center-cell bold-cell total-sum-cell">
-                        {!isBlankTemplate && classTestTotalMarks > 0 ? classTestTotalMarks : ''}
-                      </td>
-                      <td className="center-cell bold-cell total-sum-cell">
-                        {!isBlankTemplate && (classTestObtainedMarks > 0 || classTestTotalMarks > 0) ? classTestObtainedMarks : ''}
-                      </td>
-                    </tr>
-                    {/* AUTOMATIC PERCENTAGE ROW */}
-                    <tr className="class-test-total-row class-test-percentage-row">
-                      <td colSpan={2} className="total-label-cell">
-                        PERCENTAGE :
-                      </td>
-                      <td colSpan={2} className="center-cell bold-cell total-sum-cell percentage-val-cell">
-                        {!isBlankTemplate && classTestTotalMarks > 0 ? `${classTestPercentage}%` : ''}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
 
-              {/* SECTION 2: PHYSICAL TEST */}
-              <div className="report-section">
-                <h3 className="section-title">PHYSICAL TEST :</h3>
-                <table className="report-table physical-test-table">
-                  <thead>
-                    <tr>
-                      <th rowSpan={2} style={{ width: '15%' }}>
-                        DATE
-                      </th>
-                      <th colSpan={2} style={{ width: '22%' }}>
-                        1600 M
-                      </th>
-                      <th colSpan={2} style={{ width: '22%' }}>
-                        100 M
-                      </th>
-                      <th colSpan={2} style={{ width: '26%' }}>
-                        SHOT PUT
-                      </th>
-                      <th rowSpan={2} style={{ width: '15%' }}>
-                        TOTAL MARK
-                      </th>
-                    </tr>
-                    <tr>
-                      <th style={{ width: '11%' }}>TIME</th>
-                      <th style={{ width: '11%' }}>MARK</th>
-                      <th style={{ width: '11%' }}>TIME</th>
-                      <th style={{ width: '11%' }}>MARK</th>
-                      <th style={{ width: '13%' }}>DISTANCE</th>
-                      <th style={{ width: '13%' }}>MARK</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(isBlankTemplate ? Array(6).fill(null) : physicalTests).map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="center-cell">{!isBlankTemplate && item ? item.date : ''}</td>
-                        <td className="center-cell">{!isBlankTemplate && item ? item.time1600 : ''}</td>
-                        <td className="center-cell bold-cell">{!isBlankTemplate && item ? item.mark1600 : ''}</td>
-                        <td className="center-cell">{!isBlankTemplate && item ? item.time100 : ''}</td>
-                        <td className="center-cell bold-cell">{!isBlankTemplate && item ? item.mark100 : ''}</td>
-                        <td className="center-cell">{!isBlankTemplate && item ? item.shotPutDistance : ''}</td>
-                        <td className="center-cell bold-cell">{!isBlankTemplate && item ? item.shotPutMark : ''}</td>
-                        <td className="center-cell total-cell">{!isBlankTemplate && item ? item.totalMark : ''}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* SIGNATURE FOOTER */}
-              <div className="report-signature-footer">
-                <div className="signature-box">
-                  <div className="signature-line"></div>
-                  <span className="signature-title">STUDENTS SIGN</span>
+                {/* CLASS TEST */}
+                <div className="rc-card rc-beige">
+                  <div className="rc-card-head"><i className="ti ti-book"></i> Class Test – {selectedMonth}</div>
+                  {isBlankTemplate ? (
+                    <table className="rc-table">
+                      <thead>
+                        <tr><th>No.</th><th>Date</th><th>Test / Subject</th><th>Total Marks</th><th>Obtained Marks</th><th>Percentage</th></tr>
+                      </thead>
+                      <tbody>
+                        {Array(5).fill(null).map((_, i) => (
+                          <tr key={i}><td>{i + 1}</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : classTests.length > 0 ? (
+                    <table className="rc-table">
+                      <thead>
+                        <tr><th style={{ width: '7%' }}>No.</th><th style={{ width: '15%' }}>Date</th><th>Test / Subject</th><th style={{ width: '14%' }}>Total Marks</th><th style={{ width: '16%' }}>Obtained Marks</th><th style={{ width: '14%' }}>Percentage</th></tr>
+                      </thead>
+                      <tbody>
+                        {classTests.map((item, idx) => {
+                          const t = Number(item.totalMarks);
+                          const o = Number(item.obtainedMarks);
+                          return (
+                            <tr key={idx}>
+                              <td className="c">{idx + 1}</td>
+                              <td className="c">{item.date}</td>
+                              <td>{item.subject}</td>
+                              <td className="c">{item.totalMarks}</td>
+                              <td className="c">{item.obtainedMarks}</td>
+                              <td className="c">{t > 0 && item.obtainedMarks !== '' ? `${Math.round((o / t) * 100)}%` : '—'}</td>
+                            </tr>
+                          );
+                        })}
+                        {classTestTotalMarks > 0 && (
+                          <tr className="rc-total-row">
+                            <td colSpan={3} style={{ textAlign: 'right' }}>TOTAL</td>
+                            <td className="c">{classTestTotalMarks}</td>
+                            <td className="c">{classTestObtainedMarks}</td>
+                            <td className="c">{classTestPercentage}%</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="rc-empty">No data available</div>
+                  )}
                 </div>
-                <div className="signature-box">
-                  <div className="signature-line"></div>
-                  <span className="signature-title">PARENTS SIGN</span>
+
+                {/* PHYSICAL TEST */}
+                <div className="rc-card rc-blue">
+                  <div className="rc-card-head"><i className="ti ti-run"></i> Physical Test – {selectedMonth}</div>
+                  {isBlankTemplate || physicalTests.length > 0 ? (
+                    <table className="rc-table">
+                      <thead>
+                        <tr>
+                          <th rowSpan={2}>Date</th>
+                          <th colSpan={2}>1600 M</th>
+                          <th colSpan={2}>100 M</th>
+                          <th colSpan={2}>Shot Put</th>
+                          <th rowSpan={2}>Total<br />Marks</th>
+                        </tr>
+                        <tr>
+                          <th>Time</th><th>Marks</th><th>Time</th><th>Marks</th><th>Distance</th><th>Marks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {isBlankTemplate
+                          ? Array(4).fill(null).map((_, i) => (
+                              <tr key={i}>{Array(8).fill(null).map((__, j) => <td key={j}>&nbsp;</td>)}</tr>
+                            ))
+                          : physicalTests.map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="c">{item.date}</td>
+                                <td className="c">{item.time1600}</td>
+                                <td className="c">{item.mark1600}</td>
+                                <td className="c">{item.time100}</td>
+                                <td className="c">{item.mark100}</td>
+                                <td className="c">{item.shotPutDistance}</td>
+                                <td className="c">{item.shotPutMark}</td>
+                                <td className="c"><b>{item.totalMark}</b></td>
+                              </tr>
+                            ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="rc-empty">No data available</div>
+                  )}
+                </div>
+
+                {/* PERFORMANCE SUMMARY + OVERALL GROWTH */}
+                <div className="rc-two-col">
+                  <div className="rc-card rc-green">
+                    <div className="rc-card-head"><i className="ti ti-chart-bar"></i> Performance Summary</div>
+                    <div className="rc-donuts">
+                      <div className="rc-donut-item">
+                        <Donut pct={classTestPercentage !== null ? parseFloat(classTestPercentage) : null} color="#3B82F6" size={84}>
+                          <b style={{ fontSize: 14 }}>{classTestPercentage !== null ? `${classTestPercentage}%` : 'N/A'}</b>
+                        </Donut>
+                        <span>Academic<br />(Class Test)</span>
+                      </div>
+                      <div className="rc-donut-item">
+                        <Donut pct={physicalTestPercentage} color="#22A06B" size={84}>
+                          <b style={{ fontSize: 14 }}>{physicalTestPercentage !== null ? `${physicalTestPercentage.toFixed(1)}%` : 'N/A'}</b>
+                        </Donut>
+                        <span>Physical Test</span>
+                      </div>
+                      <div className="rc-donut-item">
+                        <Donut pct={attendanceStats ? parseFloat(attendanceStats.pct) : null} color="#F59E4B" size={84}>
+                          <b style={{ fontSize: 14 }}>{attendanceStats ? `${attendanceStats.pct}%` : 'N/A'}</b>
+                        </Donut>
+                        <span>Attendance</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rc-card rc-pink">
+                    <div className="rc-card-head"><i className="ti ti-trending-up"></i> Overall Growth</div>
+                    {growthData.some((g) => g.pct !== null) ? (
+                             (() => {
+                        const W = 340, H = 150, L = 30, R = 10, T = 14, B = 24;
+                        const cw = W - L - R, ch = H - T - B, n = growthData.length;
+                        const step = cw / n, bw = Math.min(38, step * 0.5);
+                        const x = (i: number) => L + step * i + step / 2;
+                        const y = (p: number) => T + ch - (p / 100) * ch;
+                        const pts = growthData
+                          .map((g, i) => (g.pct !== null ? `${x(i)},${y(g.pct)}` : null))
+                          .filter(Boolean)
+                          .join(' ');
+                        return (
+                          <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', padding: '6px 8px' }}>
+                            {[0, 25, 50, 75, 100].map((t) => (
+                              <g key={t}>
+                                <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#E2E8F0" strokeWidth="1" />
+                                <text x={L - 4} y={y(t) + 3} fontSize="8" fill="#64748B" textAnchor="end">{t}</text>
+                              </g>
+                            ))}
+                            {growthData.map((g, i) =>
+                              g.pct !== null ? (
+                                <g key={i}>
+                                  <rect x={x(i) - bw / 2} y={y(g.pct)} width={bw} height={T + ch - y(g.pct)} fill="#7FA6D8" rx="3" />
+                                  <text x={x(i)} y={y(g.pct) - 4} fontSize="9" fontWeight="700" fill="#1E293B" textAnchor="middle">{Math.round(g.pct)}%</text>
+                                </g>
+                              ) : null
+                            )}
+                            {pts && <polyline points={pts} fill="none" stroke="#E5484D" strokeWidth="2" />}
+                            {growthData.map((g, i) =>
+                              g.pct !== null ? <circle key={i} cx={x(i)} cy={y(g.pct)} r="3" fill="#E5484D" /> : null
+                            )}
+                            {growthData.map((g, i) => (
+                              <text key={i} x={x(i)} y={H - 8} fontSize="9" fill="#475569" textAnchor="middle">{g.label}</text>
+                            ))}
+                          </svg>
+                        );
+                      })()
+                    ) : (
+                      <div className="rc-empty">No data available</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* REMARK + LEVEL */}
+                <div className="rc-two-col rc-remark-row">
+                  <div className="rc-card rc-orange" style={{ flex: 2 }}>
+                    <div className="rc-card-head"><i className="ti ti-notes"></i> Teacher's Remark</div>
+                    <div className="rc-remark-text">
+                  {isBlankTemplate ? <>&nbsp;<br />&nbsp;</> : shownRemark || 'No data available'}
+                    </div> 
+                  </div>
+                  <div className="rc-card rc-pink" style={{ flex: 1 }}>
+                    <div className="rc-card-head"><i className="ti ti-star"></i> Performance Level</div>
+                    <div className="rc-level-wrap">
+                     {!isBlankTemplate && shownLevel ? (
+<span className={`rc-level ${shownLevel.cls}`}>{shownLevel.label}</span>
+                      ) : (
+                        <span style={{ color: '#94A3B8', fontSize: 12 }}>—</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* SIGNATURES */}
+                <div className="report-signature-footer">
+                  <div className="signature-box"><div className="signature-line"></div><span className="signature-title">Student Sign</span></div>
+                  <div className="signature-box"><div className="signature-line"></div><span className="signature-title">Parent's Sign</span></div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
       {/* TAB 2: MARKS ENTRY SCREEN */}
       {activeTab === 'entry' && (
-        <div className="entry-mode-container">
-          {/* Class Test Entry Card */}
+           <div className="entry-mode-container">
+          <div className="card entry-card" style={{ marginBottom: 16 }}>
+            <div className="card-header-flex">
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--navy)' }}>
+                  Attendance Entry — {currentStudent?.studentName || 'Select Student'}
+                </h3>
+                <p className="card-desc">Enter attendance for {selectedMonth}. Percentage calculates automatically.</p>
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={() => saveAtt('', '')}>
+                <i className="ti ti-rotate"></i> Reset
+              </button>
+            </div>
+            <div className="remark-entry-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+              <div>
+                <label className="remark-lbl">Total Working Days</label>
+                <input
+                  type="number" min={0} className="entry-input" placeholder="26"
+                  value={attTotal}
+                  onChange={(e) => saveAtt(e.target.value === '' ? '' : parseFloat(e.target.value), attPresent)}
+                />
+              </div>
+              <div>
+                <label className="remark-lbl">Present</label>
+                <input
+                  type="number" min={0} className="entry-input" placeholder="0"
+                  value={attPresent}
+                  onChange={(e) => saveAtt(attTotal, e.target.value === '' ? '' : parseFloat(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="remark-lbl">Absent</label>
+                <input
+                  type="number" min={0} className="entry-input" placeholder="0"
+                  value={attAbsent}
+                  onChange={(e) => {
+                    if (attTotal === '') return;
+                    const ab = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                    saveAtt(attTotal, Math.max(0, Number(attTotal) - ab));
+                  }}
+                />
+              </div>
+              <div>
+                <label className="remark-lbl">Attendance Percentage</label>
+                <input type="text" className="entry-input bold" readOnly value={`${attPctManual}%`} style={{ background: '#F1F5F9' }} />
+              </div>
+            </div>
+          </div>
           <div className="card entry-card">
             <div className="card-header-flex">
               <div>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--navy)' }}>
-                  Class Test Marks Entry — {currentStudent.studentName}
+                  Class Test Marks Entry — {currentStudent?.studentName || 'Select Student'}
                 </h3>
                 <p className="card-desc">
                   Enter written test subjects and marks for {selectedMonth}. Total additions calculate automatically.
@@ -795,7 +1161,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Live Auto-Addition Banner */}
             <div className="entry-score-banner">
               <div className="banner-item">
                 <span className="lbl">Tests Entered:</span>
@@ -811,7 +1176,7 @@ export const MonthlyStudentReportPage: React.FC = () => {
               </div>
               <div className="banner-item">
                 <span className="lbl">Percentage:</span>
-                <span className="val">{classTestPercentage}%</span>
+                <span className="val">{classTestPercentage !== null ? `${classTestPercentage}%` : '0%'}</span>
               </div>
             </div>
 
@@ -854,54 +1219,46 @@ export const MonthlyStudentReportPage: React.FC = () => {
                           placeholder="50"
                           className="entry-input center"
                           value={t.totalMarks}
-                          onChange={(e) => updateClassTest(idx, 'totalMarks', e.target.value)}
+                          onChange={(e) =>
+                            updateClassTest(idx, 'totalMarks', e.target.value === '' ? '' : parseFloat(e.target.value))
+                          }
                         />
                       </td>
                       <td>
                         <input
                           type="number"
-                          placeholder="42"
+                          placeholder="0"
                           className="entry-input center bold"
                           value={t.obtainedMarks}
-                          onChange={(e) => updateClassTest(idx, 'obtainedMarks', e.target.value)}
+                          onChange={(e) =>
+                            updateClassTest(idx, 'obtainedMarks', e.target.value === '' ? '' : parseFloat(e.target.value))
+                          }
                         />
                       </td>
                     </tr>
                   ))}
-                  {/* Total row in entry table */}
-                  <tr className="entry-total-row">
-                    <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, paddingRight: '14px' }}>
-                      TOTAL ADDITION :
-                    </td>
-                    <td style={{ textAlign: 'center', fontWeight: 800, fontSize: '14px', color: '#1E293B' }}>
-                      {classTestTotalMarks}
-                    </td>
-                    <td style={{ textAlign: 'center', fontWeight: 800, fontSize: '14px', color: '#166534' }}>
-                      {classTestObtainedMarks}
-                    </td>
-                  </tr>
-                  {/* Percentage row in entry table */}
-                  <tr className="entry-total-row" style={{ borderTop: '1px solid #E2E8F0', backgroundColor: '#F8FAFC' }}>
-                    <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, paddingRight: '14px' }}>
-                      PERCENTAGE :
-                    </td>
-                    <td colSpan={2} style={{ textAlign: 'center', fontWeight: 800, fontSize: '14px', color: '#0F172A' }}>
-                      {classTestPercentage}%
-                    </td>
-                  </tr>
+                  {classTests.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                        No class test rows entered yet. Click <strong>+ Add Test Row</strong> above to begin.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
-            </div>
+                    </div>
           </div>
 
-          {/* Physical Trial Entry Card */}
-          <div className="card entry-card" style={{ marginTop: '20px' }}>
+          {/* Physical Tests Entry Card */}
+          <div className="card entry-card" style={{ marginTop: 16 }}>
             <div className="card-header-flex">
               <div>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--navy)' }}>
-                  Physical Trial Marks Entry — {currentStudent.studentName}
+                  Physical Test Marks Entry — {currentStudent?.studentName || 'Select Student'}
                 </h3>
-                <p className="card-desc">Track 1600M running, 100M sprint, and Shot Put (गोळाफेक)</p>
+                <p className="card-desc">
+                  Enter physical trial results for 1600M, 100M, and Shot Put. Total additions calculate automatically.
+                </p>
               </div>
               <button
                 className="btn btn-secondary btn-sm"
@@ -922,7 +1279,7 @@ export const MonthlyStudentReportPage: React.FC = () => {
                   ])
                 }
               >
-                <i className="ti ti-plus"></i> Add Trial Row
+                <i className="ti ti-plus"></i> Add Physical Row
               </button>
             </div>
 
@@ -930,15 +1287,15 @@ export const MonthlyStudentReportPage: React.FC = () => {
               <table className="entry-table">
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Date</th>
-                    <th>1600M Time</th>
-                    <th>1600M Marks</th>
-                    <th>100M Time</th>
-                    <th>100M Marks</th>
-                    <th>Shot Put Dist</th>
-                    <th>Shot Put Marks</th>
-                    <th>Total Marks</th>
+                    <th style={{ width: '4%' }}>#</th>
+                    <th style={{ width: '14%' }}>Date</th>
+                    <th style={{ width: '13%' }}>1600M Time</th>
+                    <th style={{ width: '11%' }}>1600M Mark</th>
+                    <th style={{ width: '13%' }}>100M Time</th>
+                    <th style={{ width: '11%' }}>100M Mark</th>
+                    <th style={{ width: '13%' }}>Shot Put Dist</th>
+                    <th style={{ width: '11%' }}>Shot Put Mark</th>
+                    <th style={{ width: '10%' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -966,16 +1323,18 @@ export const MonthlyStudentReportPage: React.FC = () => {
                       <td>
                         <input
                           type="number"
-                          placeholder="28"
-                          className="entry-input center"
+                          placeholder="30"
+                          className="entry-input center bold"
                           value={p.mark1600}
-                          onChange={(e) => updatePhysicalTest(idx, 'mark1600', e.target.value)}
+                          onChange={(e) =>
+                            updatePhysicalTest(idx, 'mark1600', e.target.value === '' ? '' : parseFloat(e.target.value))
+                          }
                         />
                       </td>
                       <td>
                         <input
                           type="text"
-                          placeholder="11.8s"
+                          placeholder="11.5s"
                           className="entry-input center"
                           value={p.time100}
                           onChange={(e) => updatePhysicalTest(idx, 'time100', e.target.value)}
@@ -985,15 +1344,17 @@ export const MonthlyStudentReportPage: React.FC = () => {
                         <input
                           type="number"
                           placeholder="15"
-                          className="entry-input center"
+                          className="entry-input center bold"
                           value={p.mark100}
-                          onChange={(e) => updatePhysicalTest(idx, 'mark100', e.target.value)}
+                          onChange={(e) =>
+                            updatePhysicalTest(idx, 'mark100', e.target.value === '' ? '' : parseFloat(e.target.value))
+                          }
                         />
                       </td>
                       <td>
                         <input
                           type="text"
-                          placeholder="8.6m"
+                          placeholder="8.5m"
                           className="entry-input center"
                           value={p.shotPutDistance}
                           onChange={(e) => updatePhysicalTest(idx, 'shotPutDistance', e.target.value)}
@@ -1003,47 +1364,85 @@ export const MonthlyStudentReportPage: React.FC = () => {
                         <input
                           type="number"
                           placeholder="15"
-                          className="entry-input center"
-                          value={p.shotPutMark}
-                          onChange={(e) => updatePhysicalTest(idx, 'shotPutMark', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
                           className="entry-input center bold"
-                          style={{ backgroundColor: '#f0fdf4', color: '#166534' }}
-                          value={p.totalMark}
-                          readOnly
+                          value={p.shotPutMark}
+                          onChange={(e) =>
+                            updatePhysicalTest(idx, 'shotPutMark', e.target.value === '' ? '' : parseFloat(e.target.value))
+                          }
                         />
                       </td>
+                      <td style={{ textAlign: 'center', fontWeight: 800 }}>{p.totalMark}</td>
                     </tr>
                   ))}
+                  {physicalTests.length === 0 && (
+                    <tr>
+                      <td colSpan={9} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                        No physical trial rows entered yet. Click <strong>+ Add Physical Row</strong> above to begin.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
+               </div>
 
-            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button className="btn btn-primary" onClick={() => setActiveTab('preview')}>
-                <i className="ti ti-check"></i> View on Report Preview
+          {/* Remark & Performance Level Entry Card */}
+          <div className="card entry-card" style={{ marginTop: 16 }}>
+            <div className="card-header-flex">
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--navy)' }}>
+                  Teacher's Remark and Performance Level — {currentStudent?.studentName || 'Select Student'}
+                </h3>
+                <p className="card-desc">
+                  Leave blank to auto-generate from test and attendance percentages for {selectedMonth}.
+                </p>
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={() => saveRemark('', '')}>
+                <i className="ti ti-rotate"></i> Reset to Auto
               </button>
+            </div>
+
+            <div className="remark-entry-grid">
+              <div>
+                <label className="remark-lbl">Teacher's Remark</label>
+                <textarea
+                  className="entry-input"
+                  rows={3}
+                  placeholder={performanceLevel?.remark || 'Write remark for this student…'}
+                  value={remarkText}
+                  onChange={(e) => saveRemark(e.target.value, levelChoice)}
+                />
+              </div>
+              <div>
+                <label className="remark-lbl">Performance Level</label>
+                <select
+                  className="entry-input"
+                  value={levelChoice}
+                  onChange={(e) => saveRemark(remarkText, e.target.value)}
+                >
+                  <option value="">Auto{performanceLevel ? ` (${performanceLevel.label})` : ''}</option>
+                  <option value="Excellent">Excellent</option>
+                  <option value="Good">Good</option>
+                  <option value="Average">Average</option>
+                  <option value="Needs Improvement">Needs Improvement</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Scoped CSS Styles */}
+      {/* COMPACT & OFFICIAL REPORT STYLES */}
       <style>{`
         .monthly-report-page {
-          padding: 4px 0 40px 0;
+          padding: 16px 20px 40px 20px;
         }
 
-        /* Top Header Row matching other reports */
         .report-top-nav-bar {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 16px;
+          margin-bottom: 12px;
           flex-wrap: wrap;
           gap: 12px;
         }
@@ -1051,185 +1450,146 @@ export const MonthlyStudentReportPage: React.FC = () => {
           display: flex;
           align-items: center;
           gap: 12px;
-          flex-wrap: wrap;
         }
         .back-nav-btn {
-          padding: 7px 12px;
-          font-size: 13px;
-          background: #FFFFFF;
-          border: 1px solid #CBD5E1;
-          color: var(--navy, #12283F);
-          display: inline-flex;
+          display: flex;
           align-items: center;
           gap: 6px;
+          background: #FFFFFF;
+          border: 1px solid #CBD5E1;
+          color: #334155;
+          padding: 6px 12px;
+          font-size: 13px;
           border-radius: 6px;
           cursor: pointer;
         }
         .back-nav-btn:hover {
-          background: #F8FAFC;
+          background: #F1F5F9;
         }
         .report-main-title {
-          font-size: 18px;
+          font-size: 20px;
           font-weight: 700;
-          color: var(--navy, #12283F);
+          color: var(--navy);
           margin: 0;
         }
         .report-main-desc {
           font-size: 12.5px;
-          color: var(--slate-light, #64748B);
+          color: var(--slate);
+          margin: 2px 0 0 0;
           display: block;
         }
-
         .report-downloads-group {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
+        }
+        .excel-download-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #16A34A;
+          color: #FFFFFF;
+          border: none;
+          padding: 7px 14px;
+          font-size: 13px;
+          border-radius: 6px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .excel-download-btn:hover {
+          background: #15803D;
+        }
+        .pdf-download-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--blue, #2563EB);
+          color: #FFFFFF;
+          border: none;
+          padding: 7px 14px;
+          font-size: 13px;
+          border-radius: 6px;
+          font-weight: 600;
+          cursor: pointer;
         }
 
         .report-sub-bar {
           display: flex;
+          justify-content: space-between;
           align-items: center;
-          gap: 10px;
-          margin-bottom: 16px;
+          margin-bottom: 12px;
           flex-wrap: wrap;
+          gap: 10px;
         }
-
-        /* View Mode Tabs */
         .report-view-tabs {
-          display: inline-flex;
+          display: flex;
+          align-items: center;
           background: #E2E8F0;
           padding: 3px;
           border-radius: 8px;
-          gap: 3px;
         }
         .view-tab-btn {
           border: none;
-          background: none;
-          padding: 6px 12px;
-          border-radius: 6px;
+          background: transparent;
+          padding: 5px 14px;
           font-size: 12.5px;
           font-weight: 600;
           color: #475569;
+          border-radius: 6px;
           cursor: pointer;
-          display: inline-flex;
+          display: flex;
           align-items: center;
           gap: 6px;
-          transition: all 0.2s ease;
         }
         .view-tab-btn.active {
           background: #FFFFFF;
           color: #0F172A;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-
         .template-toggle-btn {
-          padding: 7px 12px;
+          border: 1px solid #CBD5E1;
+          background: #FFFFFF;
+          color: #334155;
+          padding: 5px 12px;
           font-size: 12.5px;
           font-weight: 600;
-          background: #FFFFFF;
-          border: 1px solid #CBD5E1;
-          color: #334155;
           border-radius: 6px;
           cursor: pointer;
-          display: inline-flex;
+          display: flex;
           align-items: center;
           gap: 6px;
         }
         .template-toggle-btn.active-blank {
-          background: #FEF3C7;
-          border-color: #F59E0B;
-          color: #B45309;
+          background: #EFF6FF;
+          border-color: #3B82F6;
+          color: #1D4ED8;
         }
 
-        .excel-download-btn {
-          background: #107C41 !important;
-          color: #FFFFFF !important;
-          border: none !important;
-          padding: 8px 14px;
-          font-size: 13px;
-          font-weight: 600;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: opacity 0.2s;
-        }
-        .excel-download-btn:hover {
-          opacity: 0.92;
-        }
-
-        .pdf-download-btn {
-          padding: 8px 14px;
-          font-size: 13px;
-          font-weight: 600;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-
-        /* Filter Controls Card */
         .report-filter-card {
-          margin-bottom: 16px;
+          margin-bottom: 12px;
+          padding: 12px 16px;
         }
         .report-filter-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          grid-template-columns: 2fr 2fr 1.5fr auto;
           gap: 12px;
-          align-items: end;
-        }
-        .report-filter-grid .form-field {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .report-filter-grid label {
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--slate-light, #64748B);
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
-        }
-        .report-filter-grid .form-control {
-          padding: 8px 12px;
-          border: 1px solid #CBD5E1;
-          border-radius: 6px;
-          font-size: 13px;
-          color: #0F172A;
-          background: #FFFFFF;
-          outline: none;
-          box-sizing: border-box;
-          width: 100%;
-        }
-        .report-filter-grid .form-control:focus {
-          border-color: #2563EB;
-          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-        }
-        .filter-reset-field {
-          display: flex;
-          justify-content: flex-start;
+          align-items: flex-end;
         }
         .reset-filter-btn {
-          padding: 8px 14px;
-          font-size: 13px;
-          font-weight: 600;
-          background: #FFFFFF;
+          background: #F1F5F9;
           border: 1px solid #CBD5E1;
-          border-radius: 6px;
           color: #475569;
+          padding: 7px 12px;
+          border-radius: 6px;
+          font-size: 12.5px;
+          font-weight: 600;
           cursor: pointer;
-          display: inline-flex;
+          display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
           height: 38px;
         }
-        .reset-filter-btn:hover {
-          background: #F1F5F9;
-        }
 
-        /* Active Student Summary Strip */
         .student-summary-strip {
           display: flex;
           justify-content: space-between;
@@ -1237,70 +1597,44 @@ export const MonthlyStudentReportPage: React.FC = () => {
           background: #FFFFFF;
           border: 1px solid #E2E8F0;
           border-radius: 8px;
-          padding: 10px 16px;
-          margin-bottom: 18px;
+          padding: 8px 14px;
+          margin-bottom: 16px;
           flex-wrap: wrap;
-          gap: 10px;
+          gap: 8px;
         }
         .summary-strip-left {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 10px;
           flex-wrap: wrap;
         }
         .summary-pill {
           font-size: 12.5px;
           color: #334155;
-          background: #F8FAFC;
-          border: 1px solid #E2E8F0;
-          padding: 4px 10px;
-          border-radius: 6px;
-          display: inline-flex;
+          display: flex;
           align-items: center;
           gap: 5px;
         }
-        .summary-pill.student-name-pill {
+        .student-name-pill {
           font-weight: 700;
-          color: #1E293B;
-          background: #EFF6FF;
-          border-color: #BFDBFE;
-        }
-        .summary-pill.mobile-pill {
-          color: #0369A1;
-          background: #F0F9FF;
-          border-color: #BAE6FD;
-          font-family: monospace;
-          font-size: 13px;
+          color: #0F172A;
         }
         .summary-strip-right {
           display: flex;
           align-items: center;
           gap: 8px;
-          flex-wrap: wrap;
         }
         .summary-badge {
-          font-size: 12px;
-          padding: 5px 10px;
-          border-radius: 6px;
-          font-weight: 600;
-        }
-        .total-marks-badge {
-          background: #F1F5F9;
-          color: #334155;
-          border: 1px solid #CBD5E1;
-        }
-        .obtained-marks-badge {
-          background: #ECFDF5;
-          color: #047857;
-          border: 1px solid #A7F3D0;
-        }
-        .score-percent-badge {
           background: #EFF6FF;
           color: #1D4ED8;
+          padding: 3px 10px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
           border: 1px solid #BFDBFE;
         }
 
-        /* Printable Paper Sheet Container */
+               /* Printable Paper Sheet Container */
         .report-sheet-container {
           display: flex;
           justify-content: center;
@@ -1316,238 +1650,134 @@ export const MonthlyStudentReportPage: React.FC = () => {
           min-width: 820px;
           background: #FFFFFF;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-          border: 1px solid #CBD5E1;
-          padding: 22px;
+          padding: 0;
           box-sizing: border-box;
-          color: #000000;
+          color: #1E293B;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
         .report-border-frame {
-          border: 1.5px solid #000000;
-          padding: 16px;
-          min-height: 1020px;
+          padding: 0 18px 16px 18px;
+          min-height: 1130px;
           display: flex;
           flex-direction: column;
           box-sizing: border-box;
+          background: #FCFCFD;
         }
 
-        /* Banner Box */
-        .foundation-banner-box {
-          border: 1.5px solid #000000;
-          padding: 10px 14px;
+        /* Header */
+        .rc-header {
           display: flex;
-          align-items: center;
-          gap: 14px;
-          margin-bottom: 12px;
+          align-items: stretch;
+          justify-content: space-between;
+          background: linear-gradient(90deg, #F5F1EA 0%, #FBF8F3 100%);
+          margin: 0 -18px 14px -18px;
+          padding: 12px 0 12px 18px;
+          gap: 12px;
         }
-        .banner-logo-wrap {
-          width: 76px;
-          height: 76px;
+        .rc-header-left { display: flex; align-items: center; gap: 14px; flex: 1; }
+        .rc-logo { width: 84px; height: 84px; object-fit: contain; }
+        .rc-title { font-size: 30px; font-weight: 800; margin: 0 0 2px 0; color: #1E293B; }
+        .rc-tagline { font-size: 14px; font-weight: 600; margin: 0 0 3px 0; color: #1E293B; }
+        .rc-address { font-size: 9.5px; margin: 0; color: #64748B; }
+        .rc-header-badge {
+          background: #E9E3D8;
+          min-width: 190px;
+          padding: 12px 16px;
+          text-align: center;
+          border-bottom-left-radius: 22px;
           display: flex;
-          align-items: center;
+          flex-direction: column;
           justify-content: center;
-          flex-shrink: 0;
         }
-        .foundation-logo {
-          max-width: 100%;
-          max-height: 100%;
-          object-fit: contain;
-        }
-        .banner-content {
-          text-align: center;
-          flex-grow: 1;
-        }
-        .foundation-title {
-          font-size: 22px;
-          font-weight: 800;
-          margin: 0 0 3px 0;
-          color: #000000;
-          letter-spacing: 0.5px;
-        }
-        .foundation-address {
-          font-size: 11px;
-          margin: 0 0 2px 0;
-          color: #1E293B;
-        }
-        .foundation-subtitle {
-          font-size: 12px;
-          font-weight: 700;
-          margin: 0 0 2px 0;
-          color: #000000;
-        }
-        .foundation-contact {
-          font-size: 11px;
-          font-weight: 700;
-          margin: 0;
-          color: #000000;
-        }
+        .rc-badge-title { font-size: 18px; font-weight: 800; line-height: 1.2; color: #1E293B; }
+        .rc-badge-month { font-size: 15px; margin-top: 6px; color: #334155; }
 
-        /* Title */
-        .report-title-section {
-          text-align: center;
-          margin: 10px 0 14px 0;
+        /* Profile */
+        .rc-profile { display: flex; gap: 16px; padding: 4px 4px 14px 4px; }
+        .rc-photo {
+          width: 120px; height: 140px; border-radius: 4px; overflow: hidden;
+                  flex-shrink: 0; background: transparent;
         }
-        .report-main-heading {
-          font-size: 16px;
-          font-weight: 800;
-          text-decoration: underline;
-          text-underline-offset: 4px;
-          letter-spacing: 1px;
-          margin: 0;
-          color: #000000;
-        }
+        .rc-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .rc-profile-col { flex: 1.2; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+        .rc-profile-right { flex: 1; border-left: 1px solid #E2E8F0; padding-left: 16px; gap: 5px; }
+        .rc-row { display: flex; align-items: baseline; font-size: 12px; color: #334155; }
+        .rc-lbl { min-width: 112px; }
+        .rc-colon { width: 14px; text-align: center; }
+        .rc-val { flex: 1; }
+        .rc-strong { font-weight: 800; font-size: 15px; color: #0F172A; }
 
-        /* Student Info Grid */
-        .student-info-grid {
-          display: flex;
-          justify-content: space-between;
-          padding: 0 4px;
-          margin-bottom: 12px;
-          gap: 20px;
-        }
-        .info-col {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .info-row {
-          display: flex;
-          align-items: baseline;
-          gap: 8px;
-          font-size: 12px;
-        }
-        .info-label {
-          font-weight: 800;
-          color: #000000;
-          white-space: nowrap;
-          min-width: 110px;
-        }
-        .info-value {
-          font-weight: 600;
-          color: #000000;
-          border-bottom: 1px dotted #94A3B8;
-          flex-grow: 1;
-          padding-bottom: 1px;
-        }
-        .font-mono {
-          font-family: monospace;
-          font-size: 12.5px;
-          letter-spacing: 0.5px;
-        }
-        .report-divider {
-          height: 1px;
-          background: #000000;
-          margin: 6px 0 12px 0;
-        }
+        /* Cards */
+        .rc-card { border-radius: 8px; margin-bottom: 12px; overflow: hidden; border: 1px solid #E2E8F0; background: #FFFFFF; }
+        .rc-card-head { font-size: 14px; font-weight: 700; padding: 8px 14px; display: flex; align-items: center; gap: 8px; color: #1E293B; }
+        .rc-blue .rc-card-head { background: #E8F0FA; }
+        .rc-beige .rc-card-head { background: #F6EEE0; }
+        .rc-green .rc-card-head { background: #E3F4EA; color: #14532D; }
+        .rc-pink .rc-card-head { background: #FBE7E7; color: #7F1D1D; }
+        .rc-orange .rc-card-head { background: #FDF0DC; }
+        .rc-empty { padding: 12px; text-align: center; color: #94A3B8; font-size: 12px; font-style: italic; }
 
-        /* Tables Inside Report Paper Sheet */
-        .report-section {
-          margin-bottom: 16px;
+        /* Attendance */
+        .rc-att-body { display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: #F8FAFD; }
+        .rc-tile {
+          flex: 1; border-radius: 8px; padding: 10px; text-align: center;
+          display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; color: #334155;
         }
-        .section-title-wrap {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin: 0 2px 6px 2px;
-        }
-        .section-title {
-          font-size: 13px;
-          font-weight: 800;
-          text-decoration: underline;
-          text-underline-offset: 3px;
-          margin: 0 0 6px 2px;
-          color: #000000;
-        }
-        .section-title-score-info {
-          font-size: 11px;
-          font-weight: 700;
-          color: #000000;
-          display: flex;
-          align-items: center;
-        }
+        .rc-tile b { font-size: 28px; line-height: 1; }
+        .rc-tile-blue { background: #DDE8F6; }
+        .rc-tile-green { background: #E3F3E8; } .rc-tile-green b { color: #166534; }
+        .rc-tile-red { background: #FBE4E6; } .rc-tile-red b { color: #BE123C; }
 
-        .report-table {
-          width: 100% !important;
-          border-collapse: collapse !important;
-          border: 1.5px solid #000000 !important;
-          font-size: 11px !important;
-          background: transparent !important;
-        }
-        .report-table th,
-        .report-table td {
-          border: 1px solid #000000 !important;
-          padding: 5px 6px !important;
-          color: #000000 !important;
-          height: 22px;
-          box-sizing: border-box;
-        }
-        .report-table th {
-          background-color: #F8FAFC !important;
-          font-weight: 800 !important;
-          text-align: center !important;
-          vertical-align: middle !important;
-        }
-        .center-cell {
-          text-align: center !important;
-        }
-        .bold-cell {
-          font-weight: 700 !important;
-          text-align: center !important;
-        }
-        .total-cell {
-          font-weight: 800 !important;
-          background-color: #F1F5F9 !important;
-        }
-        .class-test-total-row {
-          background-color: #F8FAFC !important;
-          border-top: 1.5px solid #000000 !important;
-        }
-        .class-test-percentage-row {
-          background-color: #F8FAFC !important;
-          border-top: 1px solid #CBD5E1 !important;
-        }
-        .percentage-val-cell {
-          font-weight: 800 !important;
-          font-size: 13px !important;
-          color: #0F172A !important;
-          background-color: #F1F5F9 !important;
-        }
-        .total-label-cell {
-          text-align: right !important;
-          font-weight: 800 !important;
-          padding-right: 12px !important;
-          letter-spacing: 0.5px;
-        }
-        .total-sum-cell {
-          font-weight: 800 !important;
-          font-size: 12px !important;
-          background-color: #F1F5F9 !important;
-        }
+        /* Tables */
+        .rc-table { width: 100%; border-collapse: collapse; font-size: 11.5px; background: #FFFFFF; }
+        .rc-table th, .rc-table td { border: 1px solid #D5DCE6; padding: 5px 6px; height: 22px; box-sizing: border-box; }
+        .rc-table th { background: #F1F5F9; font-weight: 700; text-align: center; }
+        .rc-table td.c { text-align: center; }
+        .rc-total-row td { font-weight: 800; background: #F8FAFC; }
+
+        /* Summary / growth */
+        .rc-two-col { display: flex; gap: 12px; }
+        .rc-two-col > .rc-card { flex: 1; }
+        .rc-donuts { display: flex; justify-content: space-around; padding: 12px 8px; }
+        .rc-donut-item { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; text-align: center; font-weight: 600; color: #334155; }
+        .rc-bars { display: flex; justify-content: space-around; align-items: flex-end; padding: 10px 12px 8px; height: 130px; }
+        .rc-bar-col { display: flex; flex-direction: column; align-items: center; height: 100%; width: 60px; }
+        .rc-bar-val { font-size: 11px; font-weight: 700; margin-bottom: 2px; }
+        .rc-bar-track { flex: 1; width: 40px; display: flex; align-items: flex-end; }
+        .rc-bar { width: 100%; background: #7FA6D8; border-radius: 3px 3px 0 0; }
+        .rc-bar-lbl { font-size: 10px; margin-top: 4px; color: #475569; }
+
+        /* Remark / level */
+        .rc-remark-text { padding: 10px 14px; font-size: 12px; line-height: 1.5; min-height: 52px; }
+        .rc-level-wrap { padding: 12px; text-align: center; }
+        .rc-level { display: inline-block; padding: 6px 22px; border-radius: 6px; font-weight: 800; font-size: 15px; }
+        .lvl-excellent { background: #CFF0DA; color: #14532D; }
+        .lvl-good { background: #DDF2CF; color: #3F7D20; }
+        .lvl-average { background: #FDEBC8; color: #92400E; }
+        .lvl-poor { background: #FBD5D5; color: #991B1B; }
 
         /* Signatures */
         .report-signature-footer {
           margin-top: auto;
-          padding: 24px 20px 8px 20px;
+          padding: 28px 10px 4px 10px;
           display: flex;
           justify-content: space-between;
         }
-        .signature-box {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          width: 180px;
+        .signature-box { display: flex; flex-direction: column; align-items: center; width: 200px; }
+        .signature-line { width: 100%; border-bottom: 1px solid #475569; margin-bottom: 6px; }
+        .signature-title { font-size: 12px; font-weight: 700; color: #1E293B; }
+
+             .remark-entry-grid {
+          display: grid;
+          grid-template-columns: 2fr 1fr;
+          gap: 16px;
         }
-        .signature-line {
-          width: 100%;
-          border-bottom: 1px solid #000000;
-          margin-bottom: 6px;
-        }
-        .signature-title {
+        .remark-lbl {
+          display: block;
           font-size: 12px;
-          font-weight: 800;
-          text-decoration: underline;
-          color: #000000;
+          font-weight: 600;
+          color: #334155;
+          margin-bottom: 6px;
         }
 
         /* Entry Screen Styles */
@@ -1574,7 +1804,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
           font-size: 13px;
           color: #64748B;
         }
-
         .entry-score-banner {
           display: flex;
           align-items: center;
@@ -1608,7 +1837,6 @@ export const MonthlyStudentReportPage: React.FC = () => {
           color: #16A34A;
           font-size: 15px;
         }
-
         .entry-table-wrapper {
           overflow-x: auto;
         }
@@ -1643,116 +1871,8 @@ export const MonthlyStudentReportPage: React.FC = () => {
         .entry-input.bold {
           font-weight: 700;
         }
-        .entry-total-row {
-          background: #F8FAFC;
-          border-top: 2px solid #CBD5E1;
-        }
 
-        /* Mobile & Responsive Rules (< 768px) */
-        @media (max-width: 768px) {
-          .report-top-nav-bar {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 12px;
-          }
-          .nav-title-group {
-            width: 100%;
-          }
-          .report-actions-group {
-            width: 100%;
-            justify-content: stretch;
-          }
-          .report-actions-group > * {
-            flex: 1 1 auto;
-            justify-content: center;
-          }
-          .report-filter-grid {
-            grid-template-columns: 1fr;
-          }
-          .student-summary-strip {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-          .summary-strip-left,
-          .summary-strip-right {
-            width: 100%;
-          }
-
-          /* CRITICAL: Protect the report paper sheet table from global mobile table stacking in index.css */
-          .report-paper-sheet table {
-            display: table !important;
-            width: 100% !important;
-            border: 1.5px solid #000000 !important;
-            background: transparent !important;
-          }
-          .report-paper-sheet table thead {
-            display: table-header-group !important;
-          }
-          .report-paper-sheet table tbody {
-            display: table-row-group !important;
-            gap: 0 !important;
-          }
-          .report-paper-sheet table tbody tr {
-            display: table-row !important;
-            background: transparent !important;
-            border: 1px solid #000000 !important;
-            border-radius: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-            gap: 0 !important;
-          }
-          .report-paper-sheet table tbody tr::before {
-            content: none !important;
-            display: none !important;
-          }
-          .report-paper-sheet table tbody td {
-            display: table-cell !important;
-            padding: 5px 6px !important;
-            border: 1px solid #000000 !important;
-            border-bottom: 1px solid #000000 !important;
-            text-align: inherit !important;
-            font-size: 11px !important;
-            width: auto !important;
-          }
-          .report-paper-sheet table tbody td::before {
-            content: none !important;
-            display: none !important;
-          }
-
-          /* Entry screen table mobile protection */
-          .entry-table {
-            display: table !important;
-            width: 100% !important;
-            min-width: 600px;
-          }
-          .entry-table thead {
-            display: table-header-group !important;
-          }
-          .entry-table tbody {
-            display: table-row-group !important;
-          }
-          .entry-table tbody tr {
-            display: table-row !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-            background: transparent !important;
-            padding: 0 !important;
-          }
-          .entry-table tbody tr::before {
-            content: none !important;
-            display: none !important;
-          }
-          .entry-table tbody td {
-            display: table-cell !important;
-            width: auto !important;
-          }
-          .entry-table tbody td::before {
-            content: none !important;
-            display: none !important;
-          }
-        }
-
-        /* PRINT STYLES - Matches Official Print Layout */
+        /* PRINT STYLES - A4 Portrait */
         @media print {
           body * {
             visibility: hidden;
@@ -1788,12 +1908,15 @@ export const MonthlyStudentReportPage: React.FC = () => {
           }
           .report-border-frame {
             border: 2px solid #000000 !important;
-            padding: 14px !important;
+            padding: 12px !important;
             min-height: 98vh !important;
+          }
+          .report-card-section {
+            page-break-inside: avoid !important;
           }
           @page {
             size: A4 portrait;
-            margin: 10mm;
+            margin: 8mm;
           }
         }
       `}</style>

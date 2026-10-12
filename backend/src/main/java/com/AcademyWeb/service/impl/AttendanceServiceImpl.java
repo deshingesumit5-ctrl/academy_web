@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -68,5 +69,17 @@ public class AttendanceServiceImpl implements AttendanceService {
 
         Attendance saved = attendanceRepository.save(attendance);
         return mapToDto(saved);
+    }
+
+    @Override
+    public List<AttendanceDto> getAttendanceByStudentAndMonth(Long studentId, int year, int month) {
+        if (studentId == null) {
+            return new ArrayList<>();
+        }
+        LocalDate startDate = LocalDate.of(year, month, 1);
+        LocalDate endDate = startDate.plusMonths(1).minusDays(1);
+        return attendanceRepository.findByStudentStudentIdAndAttendanceDateBetween(studentId, startDate, endDate).stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 }

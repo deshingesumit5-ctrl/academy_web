@@ -13,6 +13,7 @@ import { getActiveKitSizes } from '../master/kit-size/api/kitSizeApi';
 import type { KitSizeDto } from '../master/kit-size/api/kitSizeApi';
 import { getActiveReligions, type ReligionDto } from '../master/religion/api/religionApi';
 import { getActiveDistricts, type DistrictDto } from '../master/district/api/districtApi';
+import { getActiveCategories, type CategoryDto } from '../master/category/api/categoryApi';
 import { ActionButtons } from '../../components/ActionButtons';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Modal } from '../../components/Modal';
@@ -47,6 +48,7 @@ export const RegistrationPage: React.FC = () => {
   const [castes, setCastes] = useState<CasteDto[]>([]);
   const [kitSizes, setKitSizes] = useState<KitSizeDto[]>([]);
   const [districts, setDistricts] = useState<DistrictDto[]>([]);
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
 
   // Registered Students List State
   const cachedStudents = getCachedData('/students');
@@ -81,6 +83,7 @@ export const RegistrationPage: React.FC = () => {
   const [dob, setDob] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [email, setEmail] = useState('');
+  const [maritalStatus, setMaritalStatus] = useState('');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [kitSize, setKitSize] = useState('');
   const [address, setAddress] = useState('');
@@ -101,6 +104,7 @@ export const RegistrationPage: React.FC = () => {
   const [nccCertificateDetails, setNccCertificateDetails] = useState('');
   const [nccCertificateDoc, setNccCertificateDoc] = useState('');
   const [physicalTrainingSource, setPhysicalTrainingSource] = useState('');
+  const [physicalTrainingSourceName, setPhysicalTrainingSourceName] = useState('');
 
   // File Input Refs
   const photoFileInputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +122,12 @@ export const RegistrationPage: React.FC = () => {
   const [schoolCollege, setSchoolCollege] = useState('');
   const [qualification, setQualification] = useState('');
   const [currentStandard, setCurrentStandard] = useState('');
+
+  // Educational Documents State
+  const [educationDocuments, setEducationDocuments] = useState<
+    { documentType: string; fileName: string; fileData: string }[]
+  >([]);
+  const [docUploadErrors, setDocUploadErrors] = useState<string>('');
 
   // Admission State
   const [selectedCourseId, setSelectedCourseId] = useState<number | ''>('');
@@ -137,14 +147,15 @@ export const RegistrationPage: React.FC = () => {
 
   const fetchMasters = async () => {
     try {
-      const [c, p, b, rList, casteList, kitList, distList] = await Promise.all([
+      const [c, p, b, rList, casteList, kitList, distList, catList] = await Promise.all([
         getCourses(),
         getLibraryPlans(),
         getBatches(),
         getActiveReligions(),
         getActiveCastes(),
         getActiveKitSizes(),
-        getActiveDistricts(),
+            getActiveDistricts(),
+        getActiveCategories().catch(() => [] as CategoryDto[]),
       ]);
       setCourses(c);
       setPlans(p);
@@ -152,7 +163,8 @@ export const RegistrationPage: React.FC = () => {
       setReligions(rList);
       setCastes(casteList);
       setKitSizes(kitList);
-      setDistricts(distList);
+            setDistricts(distList);
+      setCategories(catList);
       if (c.length > 0) setSelectedCourseId(c[0].courseId || '');
       if (p.length > 0) setSelectedPlanId(p[0].planId || '');
       if (b.length > 0) setSelectedBatchId(b[0].batchId || '');
@@ -200,6 +212,80 @@ export const RegistrationPage: React.FC = () => {
       reader.onloadend = () => setNccCertificateDoc(reader.result as string);
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleAddEducationDoc = () => {
+    setEducationDocuments((prev) => [...prev, { documentType: '', fileName: '', fileData: '' }]);
+  };
+
+  const handleRemoveEducationDoc = (index: number) => {
+    setEducationDocuments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateDocType = (index: number, val: string) => {
+    setEducationDocuments((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], documentType: val };
+      return next;
+    });
+  };
+
+  const handleUploadDocFile = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setDocUploadErrors('File size must not exceed 2 MB.');
+      e.target.value = '';
+      return;
+    }
+    setDocUploadErrors('');
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEducationDocuments((prev) => {
+        const next = [...prev];
+        next[index] = {
+          ...next[index],
+          fileName: file.name,
+          fileData: reader.result as string,
+        };
+        return next;
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveUploadedDocFile = (index: number) => {
+    setEducationDocuments((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], fileName: '', fileData: '' };
+      return next;
+    });
+  };
+
+  const handleUploadEduFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach((file) => {
+      if (file.size > 2 * 1024 * 1024) {
+        setDocUploadErrors(`${file.name}: File size must not exceed 2 MB.`);
+        return;
+      }
+      setDocUploadErrors('');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEducationDocuments((prev) => [
+          ...prev,
+          {
+            documentType: file.name.replace(/\.[^.]+$/, ''),
+            fileName: file.name,
+            fileData: reader.result as string,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
   };
 
   const validateStepAndNavigate = (targetStep: number): boolean => {
@@ -288,7 +374,22 @@ export const RegistrationPage: React.FC = () => {
       if (stdErr) errors.currentStandard = stdErr;
       else delete errors.currentStandard;
 
-      if (schoolErr || stdErr) {
+      let docErr = '';
+      for (let i = 0; i < educationDocuments.length; i++) {
+        const d = educationDocuments[i];
+        if (d.fileData && !d.documentType.trim()) {
+          docErr = `Document row #${i + 1}: Please enter the document type / name.`;
+          break;
+        }
+        if (!d.fileData && d.documentType.trim()) {
+          docErr = `Document row #${i + 1}: Please upload a file for "${d.documentType}".`;
+          break;
+        }
+      }
+      if (docErr) errors.educationDocuments = docErr;
+      else delete errors.educationDocuments;
+
+      if (schoolErr || stdErr || docErr) {
         if (firstErrorStep === null) firstErrorStep = 4;
       }
     }
@@ -325,6 +426,7 @@ export const RegistrationPage: React.FC = () => {
         dob: dob || undefined,
         mobileNumber: mobileNumber.trim(),
         email: email.trim() || undefined,
+        maritalStatus: maritalStatus || undefined,
         aadhaarNumber: aadhaarNumber.trim() || undefined,
         kitSize: kitSize || undefined,
         address: address.trim() || undefined,
@@ -341,6 +443,10 @@ export const RegistrationPage: React.FC = () => {
         nccCertificateDetails: hasNccCertificate === 'Yes' ? nccCertificateDetails.trim() : undefined,
         nccCertificateDoc: hasNccCertificate === 'Yes' ? nccCertificateDoc || undefined : undefined,
         physicalTrainingSource: admissionType !== 'LIBRARY' ? finalTrainingSource : undefined,
+        physicalTrainingSourceName:
+          admissionType !== 'LIBRARY' && finalTrainingSource === 'Other'
+            ? physicalTrainingSourceName.trim() || undefined
+            : undefined,
         lastExamDate: lastExamDate || undefined,
         examMarks: examMarks !== '' ? Number(examMarks) : undefined,
         physicalMarks: physicalMarks !== '' ? Number(physicalMarks) : undefined,
@@ -355,6 +461,13 @@ export const RegistrationPage: React.FC = () => {
         batchId: selectedBatchId ? Number(selectedBatchId) : undefined,
         admissionDate: admissionDate || undefined,
         status: status || 'ACTIVE',
+        documents: educationDocuments
+          .filter((d) => d.documentType.trim() && d.fileData)
+          .map((d) => ({
+            documentType: d.documentType.trim(),
+            fileName: d.fileName,
+            fileData: d.fileData,
+          })),
       };
 
       const res = await axiosInstance.post('/students', payload);
@@ -382,6 +495,7 @@ export const RegistrationPage: React.FC = () => {
     setErrorMsg('');
     setFieldErrors({});
     setStep(1);
+
     setStudentName('');
     setGender('Male');
     setReligion('');
@@ -392,6 +506,7 @@ export const RegistrationPage: React.FC = () => {
     setDob('');
     setMobileNumber('');
     setEmail('');
+    setMaritalStatus('');
     setAadhaarNumber('');
     setKitSize('');
     setAddress('');
@@ -411,6 +526,7 @@ export const RegistrationPage: React.FC = () => {
     setNccCertificateDoc('');
 
     setPhysicalTrainingSource('');
+    setPhysicalTrainingSourceName('');
 
     setLastExamDate('');
     setExamMarks('');
@@ -420,6 +536,8 @@ export const RegistrationPage: React.FC = () => {
     setSchoolCollege('');
     setQualification('');
     setCurrentStandard('');
+    setEducationDocuments([]);
+    setDocUploadErrors('');
     if (courses.length > 0) setSelectedCourseId(courses[0].courseId || '');
     if (plans.length > 0) setSelectedPlanId(plans[0].planId || '');
     if (batches.length > 0) setSelectedBatchId(batches[0].batchId || '');
@@ -665,8 +783,8 @@ export const RegistrationPage: React.FC = () => {
                   }}
                 >
                   <option value="">-- Select Category --</option>
-                  {MAHARASHTRA_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
+             {categories.map((cg) => (
+                  <option key={cg.categoryCode} value={cg.categoryCode}>{cg.categoryCode}</option>
                   ))}
                 </select>
                 <FieldError error={fieldErrors.category} />
@@ -755,6 +873,14 @@ export const RegistrationPage: React.FC = () => {
                 <input placeholder="name@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
 
+              <div className="form-field">
+                <label>Marital Status</label>
+                <select value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)}>
+                  <option value="">-- Select --</option>
+                  <option value="Married">Married</option>
+                  <option value="Unmarried">Unmarried</option>
+                </select>
+              </div>
               <div className="form-field">
                 <label>Aadhaar number</label>
                 <input placeholder="XXXX XXXX XXXX" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value)} />
@@ -909,7 +1035,7 @@ export const RegistrationPage: React.FC = () => {
                 <label>Sports Certificate</label>
 
                 <select value={hasSportsCertificate} onChange={(e) => setHasSportsCertificate(e.target.value)}
-                  >
+                >
                   <option value="">-- Select --</option>
                   <option value="No">No</option>
                   <option value="Yes">Yes</option>
@@ -1036,14 +1162,33 @@ export const RegistrationPage: React.FC = () => {
 
               {/* Physical Training Source (ONLY for Academy and Academy + Library students) */}
               {admissionType !== 'LIBRARY' && (
-                <div className="form-field">
-                  <label>Physical Training Source</label>
-                  <select value={physicalTrainingSource} onChange={(e) => setPhysicalTrainingSource(e.target.value)}>
-                    <option value="">-- Select --</option>
-                    <option value="Ajinkya Foundation">Ajinkya Foundation</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
+                <>
+                  <div className="form-field">
+                    <label>Physical Training Source</label>
+                    <select
+                      value={physicalTrainingSource}
+                      onChange={(e) => {
+                        setPhysicalTrainingSource(e.target.value);
+                        if (e.target.value !== 'Other') setPhysicalTrainingSourceName('');
+                      }}
+                    >
+                      <option value="">-- Select --</option>
+                      <option value="Ajinkya Foundation">Ajinkya Foundation</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  {physicalTrainingSource === 'Other' && (
+                    <div className="form-field">
+                      <label>Physical Training Source Name</label>
+                      <input
+                        placeholder="Enter physical training source name"
+                        value={physicalTrainingSourceName}
+                        onChange={(e) => setPhysicalTrainingSourceName(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1139,6 +1284,67 @@ export const RegistrationPage: React.FC = () => {
                     <option key={d.districtId} value={d.name}>{d.name}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="form-field">
+                <label>Educational Documents <span style={{ fontSize: 11, color: 'var(--slate)' }}>(Max 2MB each)</span></label>
+                <input
+                  type="file"
+                  id="edu-docs-multi"
+                  accept="image/*,application/pdf"
+                  multiple
+                  onChange={handleUploadEduFiles}
+                  style={{ display: 'none' }}
+                />
+                <input
+                  type="text"
+                  readOnly
+                  placeholder="Click to upload marksheet, certificates, TC..."
+                  value={educationDocuments.length ? `${educationDocuments.length} document(s) attached` : ''}
+                  onClick={() => document.getElementById('edu-docs-multi')?.click()}
+                  style={{ cursor: 'pointer' }}
+                />
+                {docUploadErrors && (
+                  <div style={{ color: '#e53e3e', fontSize: 12, marginTop: 4 }}>{docUploadErrors}</div>
+                )}
+                          {educationDocuments.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8 }}>
+                    {educationDocuments.map((doc, idx) => {
+                      const isImg = doc.fileData.startsWith('data:image/');
+                      return (
+                        <div
+                          key={idx}
+                          style={{ position: 'relative', width: 110, border: '1px solid #cbd5e1', borderRadius: 8, overflow: 'hidden', background: '#fff' }}
+                        >
+                          <a
+                            href={doc.fileData}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Click to open"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 90, background: '#f1f5f9', textDecoration: 'none' }}
+                          >
+                            {isImg ? (
+                              <img src={doc.fileData} alt={doc.fileName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <i className="ti ti-file-type-pdf" style={{ fontSize: 38, color: '#dc2626' }}></i>
+                            )}
+                          </a>
+                          <div style={{ fontSize: 10.5, padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#334155' }} title={doc.fileName}>
+                            {doc.fileName}
+                          </div>
+                          <button
+                            type="button"
+                            title="Remove"
+                            onClick={() => handleRemoveEducationDoc(idx)}
+                            style={{ position: 'absolute', top: 3, right: 3, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'rgba(220,38,38,0.9)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                          >
+                            <i className="ti ti-x" style={{ fontSize: 12 }}></i>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

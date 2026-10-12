@@ -23,6 +23,7 @@ public class CategoryMaster {
     @Column(name = "category_name", nullable = false, length = 100)
     private String categoryName;
 
+    @org.hibernate.annotations.Nationalized
     @Column(name = "category_name_marathi", length = 100)
     private String categoryNameMarathi;
 

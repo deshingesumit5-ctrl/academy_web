@@ -56,4 +56,21 @@ public class StudentController {
         studentService.deleteStudent(id);
         return ResponseEntity.ok(ApiResponse.success("Student deleted successfully", null));
     }
+
+    // Document Endpoints
+    @GetMapping("/{id}/documents")
+    public ResponseEntity<ApiResponse<List<com.AcademyWeb.dto.StudentDocumentDto>>> getStudentDocuments(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Student documents retrieved successfully", studentService.getStudentDocuments(id)));
+    }
+
+    @GetMapping("/documents/{documentId}")
+    public ResponseEntity<ApiResponse<com.AcademyWeb.dto.StudentDocumentDto>> getDocumentById(@PathVariable Long documentId) {
+        return ResponseEntity.ok(ApiResponse.success("Student document retrieved successfully", studentService.getDocumentById(documentId)));
+    }
+
+    @DeleteMapping("/documents/{documentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteDocument(@PathVariable Long documentId) {
+        studentService.deleteDocument(documentId);
+        return ResponseEntity.ok(ApiResponse.success("Student document deleted successfully", null));
+    }
 }

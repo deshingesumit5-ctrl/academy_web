@@ -11,4 +11,9 @@ public interface StudentService {
     StudentDto reassignRollNumber(Long id, String newRollNumber);
     StudentDto assignDiscountAndConcession(Long id, java.math.BigDecimal discountAmount, java.math.BigDecimal concessionAmount, String remarks);
     void deleteStudent(Long id);
+
+    // Document operations
+    List<com.AcademyWeb.dto.StudentDocumentDto> getStudentDocuments(Long studentId);
+    com.AcademyWeb.dto.StudentDocumentDto getDocumentById(Long documentId);
+    void deleteDocument(Long documentId);
 }

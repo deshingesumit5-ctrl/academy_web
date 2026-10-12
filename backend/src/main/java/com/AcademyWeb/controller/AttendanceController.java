@@ -28,4 +28,14 @@ public class AttendanceController {
     public ResponseEntity<ApiResponse<AttendanceDto>> markAttendance(@RequestBody AttendanceDto dto) {
         return ResponseEntity.ok(ApiResponse.success("Attendance marked successfully", attendanceService.markAttendance(dto)));
     }
+
+    @GetMapping("/student/{studentId}")
+    public ResponseEntity<ApiResponse<List<AttendanceDto>>> getStudentMonthlyAttendance(
+            @PathVariable Long studentId,
+            @RequestParam int year,
+            @RequestParam int month) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Student attendance retrieved successfully",
+                attendanceService.getAttendanceByStudentAndMonth(studentId, year, month)));
+    }
 }

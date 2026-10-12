@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import axiosInstance from '../../../config/axiosInstance';
 import { Modal } from '../../../components/Modal';
 import type { CourseDto } from '../../master/course/api/courseApi';
 import type { LibraryPlanDto } from '../../master/library-plan/api/libraryPlanApi';
@@ -9,6 +10,7 @@ import { getActiveKitSizes } from '../../master/kit-size/api/kitSizeApi';
 import type { KitSizeDto } from '../../master/kit-size/api/kitSizeApi';
 import { getActiveReligions, type ReligionDto } from '../../master/religion/api/religionApi';
 import { getActiveDistricts, type DistrictDto } from '../../master/district/api/districtApi';
+import { getActiveCategories, type CategoryDto } from '../../master/category/api/categoryApi';
 import { CasteAutocomplete } from '../../../components/CasteAutocomplete';
 import {
   MOBILE_PLACEHOLDER,
@@ -85,6 +87,14 @@ export interface StudentItem {
   concessionAmount?: number;
   discountRemarks?: string;
   finalFee?: number;
+
+  // Educational Documents
+  documents?: {
+    documentId?: number;
+    documentType: string;
+    fileName: string;
+    fileData?: string;
+  }[];
 }
 
 interface StudentEditModalProps {
@@ -113,6 +123,7 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
   const [castes, setCastes] = useState<CasteDto[]>([]);
   const [kitSizes, setKitSizes] = useState<KitSizeDto[]>([]);
   const [districts, setDistricts] = useState<DistrictDto[]>([]);
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
 
   // Personal Details
   const [studentName, setStudentName] = useState('');
@@ -160,6 +171,12 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
   const [qualification, setQualification] = useState('');
   const [currentStandard, setCurrentStandard] = useState('');
 
+  // Educational Documents State
+  const [educationDocuments, setEducationDocuments] = useState<
+    { documentId?: number; documentType: string; fileName: string; fileData?: string }[]
+  >([]);
+  const [docUploadErrors, setDocUploadErrors] = useState<string>('');
+
   // Admission Details
   const [admissionType, setAdmissionType] = useState('ACADEMY');
   const [courseId, setCourseId] = useState<number | ''>('');
@@ -176,16 +193,18 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
 
   const fetchMasterData = async () => {
     try {
-      const [rList, cList, kList, dList] = await Promise.all([
+         const [rList, cList, kList, dList, catList] = await Promise.all([
         getActiveReligions(),
         getActiveCastes(),
         getActiveKitSizes(),
         getActiveDistricts(),
+        getActiveCategories().catch(() => [] as CategoryDto[]),
       ]);
       setReligions(rList);
       setCastes(cList);
       setKitSizes(kList);
-      setDistricts(dList);
+        setDistricts(dList);
+      setCategories(catList);
     } catch (err) {
       console.error(err);
     }
@@ -244,8 +263,82 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
       setStatus(student.status || 'ACTIVE');
       setFieldErrors({});
       setErrorMsg('');
+
+      // Fetch documents for the student
+      if (student.studentId) {
+        axiosInstance
+          .get(`/students/${student.studentId}/documents`)
+          .then((res) => {
+            const list = res.data?.data || [];
+            setEducationDocuments(list);
+          })
+          .catch((err) => {
+            console.error('Error fetching student documents:', err);
+            setEducationDocuments(student.documents || []);
+          });
+      } else {
+        setEducationDocuments([]);
+      }
     }
   }, [student, isOpen]);
+
+  const handleAddEducationDoc = () => {
+    setEducationDocuments((prev) => [...prev, { documentType: '', fileName: '', fileData: '' }]);
+  };
+
+  const handleRemoveEducationDoc = async (index: number) => {
+    const doc = educationDocuments[index];
+    if (doc?.documentId) {
+      try {
+        await axiosInstance.delete(`/students/documents/${doc.documentId}`);
+      } catch (err) {
+        console.error('Failed to delete document:', err);
+      }
+    }
+    setEducationDocuments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateDocType = (index: number, val: string) => {
+    setEducationDocuments((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], documentType: val };
+      return next;
+    });
+  };
+
+  const handleUploadDocFile = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setDocUploadErrors('File size must not exceed 2 MB.');
+      e.target.value = '';
+      return;
+    }
+    setDocUploadErrors('');
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEducationDocuments((prev) => {
+        const next = [...prev];
+        next[index] = {
+          ...next[index],
+          fileName: file.name,
+          fileData: reader.result as string,
+        };
+        return next;
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveUploadedDocFile = (index: number) => {
+    setEducationDocuments((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], fileName: '', fileData: '' };
+      return next;
+    });
+  };
 
   const handleSportsDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -364,6 +457,14 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
         batchId: batchId !== '' ? Number(batchId) : undefined,
         planId: planId !== '' ? Number(planId) : undefined,
         status,
+        documents: educationDocuments
+          .filter((d) => d.documentType.trim())
+          .map((d) => ({
+            documentId: d.documentId,
+            documentType: d.documentType.trim(),
+            fileName: d.fileName,
+            fileData: d.fileData,
+          })),
       });
       onClose();
     } catch (err: any) {
@@ -476,8 +577,8 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
             }}
           >
             <option value="">-- Select Category --</option>
-            {MAHARASHTRA_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
+           {categories.map((cg) => (
+       <option key={cg.categoryCode} value={cg.categoryCode}>{cg.categoryCode}</option>
             ))}
           </select>
           <FieldError error={fieldErrors.category} />
@@ -901,6 +1002,133 @@ export const StudentEditModal: React.FC<StudentEditModalProps> = ({
             }}
           />
           <FieldError error={fieldErrors.currentStandard} />
+        </div>
+
+        {/* Educational Documents (Multiple Rows) */}
+        <div style={{ gridColumn: 'span 2', marginTop: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: 6, marginBottom: 12 }}>
+            <div>
+              <span style={{ fontWeight: 600, fontSize: 13, color: '#3182ce' }}>EDUCATIONAL DOCUMENTS</span>
+              <span style={{ fontSize: 12, color: 'var(--slate)', marginLeft: 8 }}>(Upload marksheet, certificates, TC, etc. Max 2MB each)</span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: 12, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5 }}
+              onClick={handleAddEducationDoc}
+            >
+              <i className="ti ti-plus"></i> Add Document
+            </button>
+          </div>
+
+          {docUploadErrors && (
+            <div style={{ marginBottom: 10, color: '#e53e3e', fontSize: 12, fontWeight: 500 }}>
+              <i className="ti ti-alert-circle"></i> {docUploadErrors}
+            </div>
+          )}
+
+          <datalist id="edit-doc-type-suggestions">
+            <option value="Last Year Marksheet" />
+            <option value="Certificate" />
+            <option value="Leaving Certificate" />
+            <option value="Educational Document" />
+          </datalist>
+
+          {educationDocuments.length === 0 ? (
+            <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8, padding: '14px 20px', textAlign: 'center', color: 'var(--slate)', fontSize: 13 }}>
+              No educational documents attached. Click <strong>+ Add Document</strong> to upload.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {educationDocuments.map((doc, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr auto',
+                    gap: 12,
+                    alignItems: 'center',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                  }}
+                >
+                  <div>
+                    <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--slate)', display: 'block', marginBottom: 4 }}>
+                      Document Type / Name
+                    </label>
+                    <input
+                      type="text"
+                      list="edit-doc-type-suggestions"
+                      placeholder="e.g. Last Year Marksheet"
+                      value={doc.documentType}
+                      onChange={(e) => handleUpdateDocType(idx, e.target.value)}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--slate)', display: 'block', marginBottom: 4 }}>
+                      Document File (PDF / Image)
+                    </label>
+                    <input
+                      type="file"
+                      id={`edit-edu-doc-file-${idx}`}
+                      accept="image/*,application/pdf"
+                      onChange={(e) => handleUploadDocFile(idx, e)}
+                      style={{ display: 'none' }}
+                    />
+
+                    {!doc.fileName && !doc.fileData ? (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+                        onClick={() => document.getElementById(`edit-edu-doc-file-${idx}`)?.click()}
+                      >
+                        <i className="ti ti-upload"></i> Choose File
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f0f9ff', border: '1px solid #bae6fd', padding: '6px 12px', borderRadius: 6 }}>
+                        <i className="ti ti-file-check" style={{ color: '#0284c7', fontSize: 18 }}></i>
+                        <span style={{ fontSize: 12.5, color: '#0369a1', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 170 }} title={doc.fileName}>
+                          {doc.fileName || 'Attached'}
+                        </span>
+                        <button
+                          type="button"
+                          title="Replace File"
+                          style={{ border: 'none', background: 'transparent', color: '#0284c7', cursor: 'pointer', fontSize: 15, marginLeft: 'auto' }}
+                          onClick={() => document.getElementById(`edit-edu-doc-file-${idx}`)?.click()}
+                        >
+                          <i className="ti ti-pencil"></i>
+                        </button>
+                        <button
+                          type="button"
+                          title="Remove File"
+                          style={{ border: 'none', background: 'transparent', color: '#e53e3e', cursor: 'pointer', fontSize: 15 }}
+                          onClick={() => handleRemoveUploadedDocFile(idx)}
+                        >
+                          <i className="ti ti-x"></i>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ alignSelf: 'center', paddingTop: 18 }}>
+                    <button
+                      type="button"
+                      title="Delete Row"
+                      style={{ border: 'none', background: '#fee2e2', color: '#dc2626', width: 34, height: 34, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      onClick={() => handleRemoveEducationDoc(idx)}
+                    >
+                      <i className="ti ti-trash" style={{ fontSize: 16 }}></i>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Admission Details */}

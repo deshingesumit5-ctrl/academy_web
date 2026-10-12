@@ -1,20 +1,24 @@
 package com.AcademyWeb.service.impl;
 
+import com.AcademyWeb.dto.StudentDocumentDto;
 import com.AcademyWeb.dto.StudentDto;
 import com.AcademyWeb.entity.Batch;
 import com.AcademyWeb.entity.Course;
 import com.AcademyWeb.entity.LibraryPlan;
 import com.AcademyWeb.entity.Student;
+import com.AcademyWeb.entity.StudentDocument;
 import com.AcademyWeb.exception.ResourceNotFoundException;
 import com.AcademyWeb.repository.BatchRepository;
 import com.AcademyWeb.repository.CourseRepository;
 import com.AcademyWeb.repository.LibraryPlanRepository;
+import com.AcademyWeb.repository.StudentDocumentRepository;
 import com.AcademyWeb.repository.StudentRepository;
 import com.AcademyWeb.service.StudentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +30,9 @@ public class StudentServiceImpl implements StudentService {
 
     @Autowired
     private StudentRepository studentRepository;
+
+    @Autowired
+    private StudentDocumentRepository studentDocumentRepository;
 
     @Autowired
     private CourseRepository courseRepository;
@@ -87,6 +94,13 @@ public class StudentServiceImpl implements StudentService {
                 .discountAmount(entity.getDiscountAmount())
                 .concessionAmount(entity.getConcessionAmount())
                 .discountRemarks(entity.getDiscountRemarks())
+                .documents(entity.getDocuments() != null
+                        ? entity.getDocuments().stream().map(d -> StudentDocumentDto.builder()
+                                .documentId(d.getDocumentId())
+                                .documentType(d.getDocumentType())
+                                .fileName(d.getFileName())
+                                .build()).collect(Collectors.toList())
+                        : new ArrayList<>())
                 .build();
     }
 
@@ -172,6 +186,21 @@ public class StudentServiceImpl implements StudentService {
                 .concessionAmount(dto.getConcessionAmount())
                 .discountRemarks(dto.getDiscountRemarks())
                 .build();
+
+        if (dto.getDocuments() != null && !dto.getDocuments().isEmpty()) {
+            List<StudentDocument> docEntities = new ArrayList<>();
+            for (StudentDocumentDto docDto : dto.getDocuments()) {
+                if (docDto.getDocumentType() != null && !docDto.getDocumentType().trim().isEmpty()) {
+                    docEntities.add(StudentDocument.builder()
+                            .student(student)
+                            .documentType(docDto.getDocumentType().trim())
+                            .fileName(docDto.getFileName())
+                            .fileData(docDto.getFileData())
+                            .build());
+                }
+            }
+            student.setDocuments(docEntities);
+        }
 
         Student saved = studentRepository.save(student);
         return mapToDto(saved);
@@ -262,8 +291,58 @@ public class StudentServiceImpl implements StudentService {
             existing.setBatch(batchRepository.findById(dto.getBatchId()).orElse(null));
         }
 
+        // Educational Documents update (orphanRemoval = true)
+        if (dto.getDocuments() != null) {
+            existing.getDocuments().clear();
+            for (StudentDocumentDto docDto : dto.getDocuments()) {
+                if (docDto.getDocumentType() != null && !docDto.getDocumentType().trim().isEmpty()) {
+                    existing.getDocuments().add(StudentDocument.builder()
+                            .student(existing)
+                            .documentType(docDto.getDocumentType().trim())
+                            .fileName(docDto.getFileName())
+                            .fileData(docDto.getFileData())
+                            .build());
+                }
+            }
+        }
+
         Student updated = studentRepository.save(existing);
         return mapToDto(updated);
+    }
+
+    @Override
+    public List<StudentDocumentDto> getStudentDocuments(Long studentId) {
+        if (!studentRepository.existsById(studentId)) {
+            throw new ResourceNotFoundException("Student not found with ID: " + studentId);
+        }
+        return studentDocumentRepository.findByStudentStudentId(studentId).stream()
+                .map(d -> StudentDocumentDto.builder()
+                        .documentId(d.getDocumentId())
+                        .documentType(d.getDocumentType())
+                        .fileName(d.getFileName())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public StudentDocumentDto getDocumentById(Long documentId) {
+        StudentDocument doc = studentDocumentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with ID: " + documentId));
+        return StudentDocumentDto.builder()
+                .documentId(doc.getDocumentId())
+                .documentType(doc.getDocumentType())
+                .fileName(doc.getFileName())
+                .fileData(doc.getFileData())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void deleteDocument(Long documentId) {
+        if (!studentDocumentRepository.existsById(documentId)) {
+            throw new ResourceNotFoundException("Document not found with ID: " + documentId);
+        }
+        studentDocumentRepository.deleteById(documentId);
     }
 
     @Override
